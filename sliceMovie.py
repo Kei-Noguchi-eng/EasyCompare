@@ -6,7 +6,7 @@ count = 1                               # フレーム用カウンタ
 pict_num = 0                            # 出力画像の枝番
 moviePath = r"movie/SampleMovie.mp4"    # 動画のパス(仮で固定)
 movieFileName = os.path.splitext(os.path.basename(moviePath))[0]    # 動画のファイル名
-strOutputTime = '{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now())  # ファイル出力時刻
+strOutputTime = "{:%Y%m%d_%H%M%S}".format(datetime.datetime.now())  # ファイル出力時刻
 
 # 映像(動画)の取得
 capture = cv2.VideoCapture(moviePath)
@@ -31,7 +31,7 @@ while True:
         # ファイル名の枝番を更新
         pict_num = int(count // fps)
 
-        # "動画ファイル名_XXXXXX(枝番).png" でファイル出力
+        # 「動画ファイル名_XXXXXX(枝番)_yyyymmdd_HHMMSS.png」 でファイル出力
         cv2.imwrite(f"./picture/{movieFileName}_{pict_num:06}_{strOutputTime}.png", frame)
     
     count += 1  # フレームのカウントアップ
