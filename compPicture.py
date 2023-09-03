@@ -1,20 +1,37 @@
+import os
 import cv2
+import glob
 import numpy as np
 
 hitMode = 1         # 0:類似度が最大の場所を選択する #1:基準値以上場所を選択する
-threshold = 0.80    # 閾値の指定
-imgPicturePath = r"picture\sample\matchTest_folder.png" # 取得画像のパス
-templatePicturePath = r"parts\sample\folder_01.png"     # 探索画像のパス
+threshold = 0.95    # 閾値の指定
+
+# 取得画像、探索画像の指定
+# サンプルfolderの場合
+#imgPicturePath = r"./picture/sample/folder/folder.png" # 取得画像のパス
+#serchFilesPath = r"./parts/sample/folder/*"            # 探索画像フォルダのパス
+# サンプルnatureの場合
+imgPicturePath = r"./picture/sample/nature/nature_compTest.png"  # 取得画像のパス
+serchFilesPath = r"./parts/sample/nature/*"             # 探索画像フォルダのパス
+
+# 画像のファイル名を取得 (出力ファイルのフォーマット用)
+resultPictureName = os.path.splitext(os.path.basename(imgPicturePath))[0]
+
+# 画像の読み込み
+img = cv2.imread(imgPicturePath)    # 取得画像(探索される対象)
+files = glob.glob(serchFilesPath)   # 探索画像フォルダのパス               
 
 # 処理本体
 def main():
     
-    # 画像の読み込み
-    img = cv2.imread(imgPicturePath)            # 取得画像(探索される対象)
-    template = cv2.imread(templatePicturePath)  # 探索画像
+    for fname in files:
+        # 探索画像の数だけ繰り返す
 
-    # テンプレートマッチを行う
-    templateMatching(img, template, hitMode)    # 暫定で複数箇所 hit で制作
+        # 探索画像の指定
+        template = cv2.imread(fname)
+
+        # テンプレートマッチを行う
+        templateMatching(img, template, hitMode)    # 暫定で複数箇所 hit で制作
 
 
 # 画像のテンプレートマッチを行う
@@ -60,7 +77,7 @@ def templateMatching(img, template, hitMode):
 #        case _: # default
 
     # 画像の保存
-    cv2.imwrite(r"comp/templateMatching_result.png", img)
+    cv2.imwrite(f"./comp/{resultPictureName}_templateMatching_result.png", img)
 
 
 # 処理のコール
