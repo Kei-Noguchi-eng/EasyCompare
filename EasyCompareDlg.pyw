@@ -1,8 +1,13 @@
 # -*- coding: utf8 -*-
 import tkinter as tk 
+import keiUtil
+
+keiUtil.toolName = "EasyCompareDlg"
+keiUtil.logAdd("[Info] EasyCompare 起動")
 
 # MainWindowDlgクラス
 class MainWindowDlg(tk.Frame):
+	# コンストラクタ
     def __init__(self, master = None):
         super().__init__(master)
 
@@ -10,9 +15,15 @@ class MainWindowDlg(tk.Frame):
         master.title("EasyCompare")       # ウィンドウタイトル
         master.geometry("600x400")        # ウィンドウサイズ(幅x高さ)
 
-        # 実行内容
+        keiUtil.logAdd("[Info] EasyCompareDlg 起動")
+
+       # 実行内容
         self.pack()
         self.create_widget()
+
+	# デストラクタ
+    def __del__(self):
+        keiUtil.logAdd("[Info] EasyCompareDlg 終了\n\n")
 
     # ウィンドウを閉じる (終了ボタン)
     def close_window():
