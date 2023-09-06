@@ -21,7 +21,9 @@ resultPictureName = os.path.splitext(os.path.basename(imgPicturePath))[0]
 img = cv2.imread(imgPicturePath)    # 取得画像(探索される対象)
 files = glob.glob(serchFilesPath)   # 探索画像フォルダのパス               
 
-# 処理本体
+###############################################################################
+# 処理本体    
+###############################################################################
 def main():
     
     for fname in files:
@@ -33,8 +35,12 @@ def main():
         # テンプレートマッチを行う
         templateMatching(img, template, hitMode)    # 暫定で複数箇所 hit で制作
 
-
+###############################################################################
 # 画像のテンプレートマッチを行う
+#  引数1: img           比較を行う画像
+#  引数2: template      比較対象の画像 (パーツ)
+#  引数3: hitMode       比較モードの指定    0:一番近い画像を検出 1:閾値を超えた画像を検出
+################################################################################
 def templateMatching(img, template, hitMode):
     
     # グレースケール化
@@ -47,7 +53,7 @@ def templateMatching(img, template, hitMode):
     # 処理対象画像に対して、テンプレート画像との類似度を算出する
     res = cv2.matchTemplate(img_gray, template_gray, cv2.TM_CCOEFF_NORMED)
 
-    # hitMode により処理分岐 (Python3.10以降で match 文対応)
+    # hitMode により処理分岐
     match hitMode:  
 
         case 0: # 類似度最大の場所を選択
@@ -79,7 +85,8 @@ def templateMatching(img, template, hitMode):
     # 画像の保存
     cv2.imwrite(f"./comp/{resultPictureName}_templateMatching_result.png", img)
 
-
-# 処理のコール
+###############################################################################
+# 処理のコール    
+###############################################################################
 if __name__ == "__main__":
     main()
