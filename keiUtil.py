@@ -14,18 +14,22 @@ managementArea:str = r"c:\pythonTemp"
 def logAdd(text, nMode = 0):
     match nMode:
         case 0:
-            label = "【INFO 】"
+            label = "-------"   # 通常ログ
         case 1:
-            label = "【ALERT】"
+            label = "【INF】"   # info 情報
         case 2:
-            label = "【ERROR】"
+            label = "【ALT】"   # alert 警告
         case 3:
-            label = "【CRITICAL】"
+            label = "【ERR】"   # error エラー
+        case 4:
+            label = "【CRT】"   # critical 致命的なエラー
+        case _:
+            label = "【OTH】"   # other その他
     f = open(f"{managementArea}\\log_{toolName}_{execDay}.txt", 'a', encoding='UTF-8')
     now = datetime.datetime.now()
-    text = f"{label}[{now:%Y/%m/%d(%a) %H:%M:%S}] {text}\n"
-    print(text[:-1])    # print文に出力
-    f.write(text)       # ログファイルに出力
+    text = f"{label}[{now:%Y/%m/%d(%a) %H:%M:%S}] {text}"
+    print(text)    # print文に出力
+    f.write(f"{text}\n")       # ログファイルに出力
     f.close()
 
 ###############################################################################
