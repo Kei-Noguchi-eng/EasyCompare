@@ -55,3 +55,13 @@ def getTime():
     now = datetime.datetime.now()
     nowTime = f"{now:%Y%m%d_%H%M%S}"
     return nowTime
+
+###############################################################################
+# 秒数　→　時、分、秒　に変換
+###############################################################################
+def secToTime(nSec):
+    hh, temp = divmod(nSec, 3600)
+    mm, ss = divmod(temp, 60)
+    list_time = [hh, mm, ss]
+#    print(f"{hh}:{mm}:{ss}")   # デバッグ用
+    return list_time

@@ -21,7 +21,7 @@ from PIL import Image, ImageOps, ImageTk
 # qiita の yutaka_m(yuta mori) 様のページを参考にしています
 
 ###############################################################################
-# ClipMovieDlg の Viewクラス
+# ClipMovieクラス
 ###############################################################################
 class clipMovie:
  
@@ -169,7 +169,7 @@ class clipMovie:
     def on_click_start(self):
         # セット済みのフレームから動画を再生する
         self.start_movie = True
-        keiUtil.logAdd(f"動画の再生を開始します。 -> {self.inMoviePath}")
+        keiUtil.logAdd(f"動画の再生開始 -> {self.inMoviePath}", 1)
 
     ###############################################################################
     # 停止ボタンを押したときの動作
@@ -177,7 +177,7 @@ class clipMovie:
     def on_click_stop(self):
         # 現在のフレームで再生を停止する
         self.start_movie = False
-        keiUtil.logAdd(f"動画の再生を停止します。 -> {self.inMoviePath}")
+        keiUtil.logAdd(f"動画の再生停止 -> {self.inMoviePath}", 1)
 
     ###############################################################################
     # リセットを押したときの動作
@@ -221,7 +221,7 @@ class clipMovie:
                 ret, self.video_frame = self.capture.read() # フレーム画像の読み込み
 
                 if ret:
-                    self.update_canvas_image()              # 読み込んだ画像でイメージを更新する
+                    self.updateCanvasImage()              # 読み込んだ画像でイメージを更新する
                 else:
                     self.start_movie = False                # 再生を終了する
 
@@ -236,32 +236,31 @@ class clipMovie:
         ret, self.video_frame = self.capture.read()     # 1フレーム分の画像データを読み込む
 
         if self.video_frame is None:
-            # 画像が存在しない(終端)
+            # 画像が存在しない
             print("None")
 
         else:
-            ret, self.video_frame = self.capture.read()
+            ret, self.video_frame = self.capture.read() # 1フレーム分の画像データを読み込む
 
-            # 読み込んだ画像を Pillow で使えるようにする
-            pil = self.cvtopli_color_convert(self.video_frame)
-
-            self.effect_img, self.canvas_create = self.resize_image(pil, self.canvas)
+            # 画像の加工
+            pil = self.cvtopli_color_convert(self.video_frame) # 読み込んだ画像を Pillow で使えるようにする
+            self.effect_img, self.canvas_create = self.resize_image(pil, self.canvas)   # 画像のリサイズ
 
             # キャンバスの画像を更新する
             self.replace_canvas_image(self.effect_img, self.canvas, self.canvas_create)
 
     ###############################################################################
-    # フレーム画像をキャンバスに描画する
+    # キャンバス画像を更新する
     ###############################################################################
-    def update_canvas_image(self):
-
+    def updateCanvasImage(self):
+        # 画像の加工
         pil = self.cvtopli_color_convert(self.video_frame)
         self.effect_img, self.canvas_create = self.resize_image(pil, self.canvas)
         self.replace_canvas_image(self.effect_img, self.canvas, self.canvas_create)
 
-        # 現在の動画位置(フレーム)を取得する
+        # 現在の動画位置を取得し、描画のカウントを更新する
         frame_Num = int(self.capture.get(cv2.CAP_PROP_POS_FRAMES))
-        self.updateMovieInfo(frame_Num)
+        self.updateMovieCount(frame_Num)
 
     ###############################################################################
     # BGR →　RGB　変換      ※ OpenCV imread()で読むと色の順番がBGRになるため
@@ -341,24 +340,41 @@ class clipMovie:
         # 映像(動画)の取得
         self.capture = cv2.VideoCapture(self.inMoviePath)
         self.bCatchedMovie = True
-        keiUtil.logAdd(f"動画を読み込みました。 -> {self.inMoviePath}")
+        keiUtil.logAdd(f"動画の読込 -> {self.inMoviePath}", 1)
 
         # 動画のフレーム数の取得
-        self.fps = self.capture.get(cv2.CAP_PROP_FPS)
-        keiUtil.logAdd(f"{self.movie_FileName} フレーム数:{self.fps}")
+        tempfps = self.capture.get(cv2.CAP_PROP_FPS)
+        self.fps = int(int((tempfps+0.5)*10)/10)                    # fpsを小数点以下で四捨五入
+        keiUtil.logAdd(f"「{self.movie_FileName}」, 平均フレーム数:{self.fps} ({self.capture.get(cv2.CAP_PROP_FPS)})")
 
         # 動画の総フレーム数の取得
         self.totalCount = int(self.capture.get(cv2.CAP_PROP_FRAME_COUNT))
+        keiUtil.logAdd(f"総フレーム数:{self.totalCount} (再生時間：{self.getTotalMovieCount()})")
 
-        # 表示の更新
-        self.updateMovieInfo()
+        # 動画タイトルの更新
+        self.movieStrvar.set(self.movie_FileName)
+
+        # 動画の時間表示の更新
+        self.updateMovieCount()
 
     ###############################################################################
-    # 動画の情報表示の更新
+    # 動画の再生時間を更新する
     ################################################################################
-    def updateMovieInfo(self, frameNum=0):
-        self.movieStrvar.set(self.movie_FileName)   # 動画タイトルの更新
-        self.secStrvar.set(f"{frameNum}/ {self.totalCount}")   # 動画タイトルの更新
+    def updateMovieCount(self, frameNum=0):
+        if ( frameNum == 0 or (frameNum % self.fps) == 0):
+            currentTime = keiUtil.secToTime((int)(frameNum/self.fps))
+            maxTime = keiUtil.secToTime((int)(self.totalCount/self.fps))
+            self.secStrvar.set(f"{currentTime[0]:02d}:{currentTime[1]:02d}:{currentTime[2]:02d}/"
+                f" {self.getTotalMovieCount()}")    # 動画カウントの更新
+#            self.secStrvar.set(f"{currentTime[0]:02d}:{currentTime[1]:02d}:{currentTime[2]:02d}/"
+#                f"{maxTime[0]:02d}:{maxTime[1]:02d}:{maxTime[2]:02d}")    # 動画カウントの更新
+
+    ###############################################################################
+    # 動画の総時間を取得する
+    ################################################################################
+    def getTotalMovieCount(self):
+        maxTime = keiUtil.secToTime((int)(self.totalCount/self.fps))
+        return f"{maxTime[0]:02d}:{maxTime[1]:02d}:{maxTime[2]:02d}"
 
     ###############################################################################
     # 動画のクリッピング
@@ -372,7 +388,7 @@ class clipMovie:
         # pythonTempフォルダがなければ作成
         os.makedirs(f"{keiUtil.managementArea}/picture/{self.movie_FileName}", exist_ok=True)
 
-        keiUtil.logAdd("クリッピング開始")
+        keiUtil.logAdd("クリッピング開始, 1")
         
         # 動画のフレームを順番に見ていく
         while True:
@@ -381,7 +397,7 @@ class clipMovie:
             
             if not ret:
                 # フレームを読み込めなかったらループを抜ける
-                keiUtil.logAdd("クリッピング終了")
+                keiUtil.logAdd("クリッピング終了, 1")
                 break
 
             # ファイルの出力

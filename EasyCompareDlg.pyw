@@ -1,4 +1,8 @@
 # -*- coding: utf8 -*-
+###############################################################################
+# EasyCompareDlg.pyw
+#   ツールのメニュー
+################################################################################
 import tkinter as tk
 import keiUtil
 import configparser
@@ -13,7 +17,7 @@ inifile.read('settings.ini')
 keiUtil.checkExitFolder(keiUtil.managementArea) # 管理領域の作成
 keiUtil.toolName = "EasyCompareDlg"
 keiUtil.execDay = keiUtil.getDay() # アプリケーションの起動日の取得
-keiUtil.logAdd("EasyCompare 起動")
+keiUtil.logAdd("EasyCompare 起動", 1)
 
 ###############################################################################
 # MainFrameクラス (tk.Frameを継承) 
@@ -61,14 +65,14 @@ class MainFrame(tk.Frame):
         # ピクチャ用スペース (キャンバス)
         self.pictCanvas = tk.Canvas(self.master, width=560, height=150, bg="lightgreen")
         self.pictCanvas.place(x=20, y=10)
-        self.pictCanvas.create_text(290, 85, text=r"画像用スペース", font=("MSゴシック体", "18","bold"))
+        self.pictCanvas.create_text(290, 85, text=r"画像用スペース(工事中)", font=("MSゴシック体", "18","bold"))
  
         # CLIPボタン (抽出)
         self.button_clip = tk.Button(self.master, width=8, height=2, text=r"CLIP", font=("MSゴシック体", "18","bold"), command = self.createClipMovieDlg)
         self.button_clip.place(x=20, y=170, width=275, height=170)
  
         # COMPボタン (比較)
-        self.button_comp = tk.Button(self.master, width=8, height=2, text=r"COMP", font=("MSゴシック体", "18","bold"))
+        self.button_comp = tk.Button(self.master, width=8, height=2, text="COMP\n(工事中)", font=("MSゴシック体", "18","bold"))
         self.button_comp.place(x=305, y=170, width=275, height=170)
  
         # 設定ボタン
@@ -86,6 +90,7 @@ class MainFrame(tk.Frame):
 
         # ClipMovieDlg の作成
         subWindowClip = tk.Toplevel(self)           # サブウィンドウを開く
+#        clipMovie.clipMovie(subWindowClip) # Viewクラス生成
         clipMovie.clipMovie(subWindowClip) # Viewクラス生成
 
         # # モーダルにする設定
@@ -107,6 +112,6 @@ if __name__ == "__main__":
     root = tk.Tk()                              # Tk オブジェクトの生成
     mainFrame = MainFrame(master = root)        # Tk オブジェクトを指定して フレームのウィンドウを生成
     mainFrame.mainloop()                        # 生成したウィンドウの表示 (メインループ)
-    keiUtil.logAdd("EasyCompare 終了\n\n")
+    keiUtil.logAdd("EasyCompare 終了\n\n", 1)
 
 
