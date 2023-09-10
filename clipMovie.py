@@ -23,34 +23,75 @@ from PIL import Image, ImageOps, ImageTk
 ###############################################################################
 # ClipMovieクラス
 ###############################################################################
-class clipMovie:
+class clipMovie(tk.Frame):
  
     ###############################################################################
  	# コンストラクタ
     ###############################################################################
-    def __init__(self, main_window):
+    def __init__(self, main_window=None):
+        super().__init__(main_window)
 
-        self.inMoviePath:str             # 読み込みファイルのパス
-        self.folderPath:str              # 読み込みファイルのパス
-        self.movie_FileName:str = ""     # 動画のファイル名
-        self.totalCount:int = 0          # 動画の総フレーム数
-        self.fps:int = 0                 # 動画の総fps数
-        self.capture:cv2.VideoCapture    # 映像(動画)の情報
-        self.bCatchedMovie = False       # 動画ファイルを読み込み済みか
+        # 変数初期化
+        self.init_var()
        
         # Viewの生成
         self.createView()
+
+        # ウィンドウの x ボタンが押された時
+        self.master.protocol("WM_DELETE_WINDOW", self.delete_window)
 
     ###############################################################################
  	# デストラクタ
     ###############################################################################
     def __del__(self):
         # 動画イメージの解放
+        self.release_capture()
+
+    ###############################################################################
+ 	# 変数初期化
+    ###############################################################################
+    def init_var(self):
+        self.inMoviePath:str             # 読み込みファイルのパス
+        self.folderPath:str              # 読み込みファイルのパス
+        self.movie_FileName:str = ""     # 動画のファイル名
+        self.totalCount:int = 0          # 動画の総フレーム数
+        self.fps:int = 0                 # 動画のfps数
+        self.outputStartPos:int = 0      # 出力範囲の開始位置
+        self.outputEndPos:int = 0        # 出力範囲の終了位置
+        self.outputFreq:int = 0          # 出力頻度の設定(何フレーム毎に出力するか)
+        self.capture:cv2.VideoCapture    # 映像(動画)の情報
+        self.bCatchedMovie = False       # 動画ファイルを読み込み済みか
+        self.bCatchedMovie = False       # 動画を読み込み済みかのフラグ (解放用)
+        self.set_movie = True            # スレッドのループのフラグ
+        self.thread_set = False          # スレッドを開始済みかのフラグ
+        self.start_movie = False         # 再生中フラグ True の間フレームを更新する
+        self.video_frame = None
+
+    ###############################################################################
+ 	#  ウィンドウの×ボタンでの終了
+    ###############################################################################
+    def delete_window(self):
+        # 終了確認のメッセージ表示
+        print("test")
+        ret = tk.messagebox.askyesno(
+            title = "終了確認",
+            message = "プログラムを終了しますか？")
+
+        if ret == True:
+            self.release_capture()      # 動画イメージの解放
+            self.master.destroy()
+            keiUtil.logAdd("ClipMovie 終了", 1)
+
+    ###############################################################################
+ 	# イメージの解放
+    ###############################################################################
+    def release_capture(self):
+        # 動画イメージの解放
         if self.bCatchedMovie == True:
             self.capture.release()
             self.bCatchedMovie = False
 
-    ###############################################################################
+   ###############################################################################
     # Window の View
     ###############################################################################
     def createView(self):
@@ -58,103 +99,146 @@ class clipMovie:
         # ウィンドウの設定
         self.main_window = main_window
         self.main_window.title("Clip Movie")            # ウィンドウタイトル
-        self.main_window.geometry("1200x700+100+100")   # ウィンドウサイズ(幅x高さ+位置補正)
+        self.main_window.geometry("1200x600+100+100")   # ウィンドウサイズ(幅x高さ+位置補正)
+        self.main_window.wm_minsize(width=1200, height=600) # ウィンドウサイズ下限
 #        self.main_window.resizable(False, False)       # ウィンドウサイズの固定 (現状は可変)
 
         # Variable setting
         self.movieFile_filter = [("Movie file", ".mp4")]    # 動画読み込み時のフィルタ
-        self.bCatchedMovie = False  # 動画を読み込み済みかのフラグ (解放用)
-        self.set_movie = True       # スレッドのループのフラグ
-        self.thread_set = False     # スレッドを開始済みかのフラグ
-        self.start_movie = False    # 再生中フラグ True の間フレームを更新する
-        self.video_frame = None
 
         # エリアの分割
-        self.canvas_frame = tk.Frame(self.main_window)  # 動画領域
-        self.canvas_frame.place(relx=0.01, rely=0.01, relwidth=0.6, relheight=0.75)
+        self.FRAME_CANVAS = tk.Frame(self.main_window)  # 動画領域
+        self.FRAME_CANVAS.place(relx=0.01, rely=0.01, relwidth=0.6, relheight=0.85)
 
-        self.opr_canvas = tk.Frame(self.main_window)     # 動画コントロール領域
-        self.opr_canvas.place(relx=0.01, rely=0.76, relwidth=0.6, relheight=0.23)
+        self.FRAME_CANVAS_OPR = tk.Frame(self.main_window)     # 動画コントロール領域
+        self.FRAME_CANVAS_OPR.place(relx=0.01, rely=0.86, relwidth=0.6, relheight=0.13)
 
-        self.path_frame = tk.Frame(self.main_window)     # ファイルパス領域
-        self.path_frame.place(relx=0.61, rely=0.01, relwidth=0.37, relheight=0.20)
+        self.FRAME_PATH = tk.Frame(self.main_window)     # ファイルパス領域
+        self.FRAME_PATH.place(relx=0.61, rely=0.05, relwidth=0.37, relheight=0.15)
  
-        self.opr_frame = tk.Frame(self.main_window)      # コントロール領域
-        self.opr_frame.place(relx=0.61, rely=0.22, relwidth=0.37, relheight=0.77)
+        self.FRAME_COMMAND_OPR = tk.Frame(self.main_window)      # コントロール領域
+        self.FRAME_COMMAND_OPR.place(relx=0.61, rely=0.30, relwidth=0.37, relheight=0.69)
 
         # 動画領域
         self.movieStrvar = tk.StringVar()
         self.movieStrvar.set("Movie")
         self.movieLabel = tk.Label(
-            self.canvas_frame, textvariable=self.movieStrvar, bg="white", relief=tk.RIDGE)  # 動画タイトル
+            self.FRAME_CANVAS, textvariable=self.movieStrvar, bg="white", relief=tk.RIDGE)  # 動画タイトル
         self.movieLabel.place(relx=0.00, rely=0.00, relwidth=0.98, relheight=0.07)
 
-        self.canvas = tk.Canvas(self.canvas_frame, bg="#A9A9A9")                            # 動画表示スペース
+        self.canvas = tk.Canvas(self.FRAME_CANVAS, bg="#A9A9A9")                            # 動画表示スペース
         self.canvas.place(relx=0.00, rely=0.08, relwidth=0.98, relheight=0.91)
 
         # 動画コントロール領域
         self.scale_var = tk.IntVar()
-        self.scale = tk.Scale(
-                        self.opr_canvas, orient=tk.HORIZONTAL,                              # スライダー
+        self.SCR_SCALE = tk.Scale(
+                        self.FRAME_CANVAS_OPR, orient=tk.HORIZONTAL,                              # スライダー
                         sliderlength=15, from_=0, to=300, resolution=1,
 #                        showvalue=0,   # デバッグ終わったら有効化する (スケールの数字が消える)
                         variable = self.scale_var, command = self.onSliderScroll
         )                        
-        self.scale.place(relx=0.01, rely=0.01, relwidth=0.98, relheight=0.4)
+        self.SCR_SCALE.place(relx=0.01, rely=0.01, relwidth=0.98, relheight=0.65)
 
         self.secStrvar = tk.StringVar()
         self.secStrvar.set("00:00:00/ 00:00:00")
-        self.sec_count = tk.Label(self.opr_canvas, textvariable=self.secStrvar, font=(0,12))# 再生時間ラベル
-        self.sec_count.place(relx=0.74, rely=0.42, relwidth=0.25, relheight=0.20)
+        self.LBL_SECCOUNT = tk.Label(self.FRAME_CANVAS_OPR, textvariable=self.secStrvar, font=(0,12))# 再生時間ラベル
+        self.LBL_SECCOUNT.place(relx=0.79, rely=0.66, relwidth=0.25, relheight=0.20)
 
         # 操作ボタン領域
-        self.label_input = tk.Label( self.path_frame, text="読み込みファイル", anchor=tk.W)   # 読み込みファイルラベル
-        self.label_input.place(relx=0.00, rely=0.00, relwidth=0.98, relheight=0.24)
+        self.LBL_INPUTFILE = tk.Label( self.FRAME_PATH, text="読み込みファイル", anchor=tk.W)   # 読み込みファイルラベル
+        self.LBL_INPUTFILE.place(relx=0.00, rely=0.00, relwidth=0.98, relheight=0.24)
 
         self.inPathStrvar = tk.StringVar()                                                    # 読み込みファイルパス
-        self.path_input = tk.Entry(self.path_frame, textvariable=self.inPathStrvar)
-        self.path_input.place(relx=0.00, rely=0.25, relwidth=0.88, relheight=0.24)
+        self.EDT_INPUTPATH = tk.Entry(self.FRAME_PATH, textvariable=self.inPathStrvar)
+        self.EDT_INPUTPATH.place(relx=0.00, rely=0.25, relwidth=0.88, relheight=0.24)
 
-        self.button_input = self.opr_btn(self.path_frame, "開く", self.on_click_moviePath)    # ファイルを開くボタン(in)
-        self.button_input.place(relx=0.89, rely=0.25, relwidth=0.10, relheight=0.24)
+        self.BTN_INPUTPATH = self.opr_btn(self.FRAME_PATH, "開く", self.on_click_moviePath)    # ファイルを開くボタン(in)
+        self.BTN_INPUTPATH.place(relx=0.89, rely=0.25, relwidth=0.10, relheight=0.24)
 
-        self.label_output = tk.Label( self.path_frame, text="出力先パス", anchor=tk.W)        # 出力先ラベル
-        self.label_output.place(relx=0.00, rely=0.50, relwidth=0.98, relheight=0.24)
+        self.LBL_OUTPUTFILE = tk.Label( self.FRAME_PATH, text="出力先パス", anchor=tk.W)        # 出力先ラベル
+        self.LBL_OUTPUTFILE.place(relx=0.00, rely=0.50, relwidth=0.98, relheight=0.24)
 
         self.outPathStrvar = tk.StringVar()
-        self.path_output = tk.Entry(self.path_frame, textvariable=self.outPathStrvar)           # 出力先パス
-        self.path_output.place(relx=0.00, rely=0.75, relwidth=0.88, relheight=0.24)
+        self.EDT_OUTPUTPATH = tk.Entry(self.FRAME_PATH, textvariable=self.outPathStrvar)           # 出力先パス
+        self.EDT_OUTPUTPATH.place(relx=0.00, rely=0.75, relwidth=0.88, relheight=0.24)
 
-        self.button_output = self.opr_btn(self.path_frame, "開く", self.on_click_folderPath) # ファイルを開くボタン(out)　
-        self.button_output.place(relx=0.89, rely=0.75, relwidth=0.10, relheight=0.24)
+        self.BTN_OUTPUTPATH = self.opr_btn(self.FRAME_PATH, "開く", self.on_click_folderPath) # ファイルを開くボタン(out)　
+        self.BTN_OUTPUTPATH.place(relx=0.89, rely=0.75, relwidth=0.10, relheight=0.24)
 
-        # コントロール領域
-        self.button_play = self.opr_btn(self.opr_frame, "再生", self.on_click_start)    # 再生ボタン
-        self.button_play.place(relx=0.00, rely=0.00, relwidth=0.32, relheight=0.20)
-        self.button_play.config(state=tk.DISABLED)
+        # コントロール領域：ビデオ
+        self.BTN_PLAY = self.opr_btn(self.FRAME_COMMAND_OPR, "再生", self.on_click_start)    # 再生ボタン
+        self.BTN_PLAY.place(relx=0.00, rely=0.00, relwidth=0.32, relheight=0.20)
+        self.BTN_PLAY.config(state=tk.DISABLED)
 
-        self.button_stop = self.opr_btn(self.opr_frame, "停止", self.on_click_stop)      # 停止ボタン
-        self.button_stop.place(relx=0.33, rely=0.00, relwidth=0.32, relheight=0.20)
-        self.button_stop.config(state=tk.DISABLED)
+        self.BTN_STOP = self.opr_btn(self.FRAME_COMMAND_OPR, "停止", self.on_click_stop)      # 停止ボタン
+        self.BTN_STOP.place(relx=0.33, rely=0.00, relwidth=0.32, relheight=0.20)
+        self.BTN_STOP.config(state=tk.DISABLED)
 
-        self.button_Capture = self.opr_btn(self.opr_frame, "キャプチャ", self.on_click_reset)    # キャプチャボタン
-        self.button_Capture.place(relx=0.66, rely=0.00, relwidth=0.32, relheight=0.20)
-        self.button_Capture.config(state=tk.DISABLED)
+        self.BTN_RSTPLAY = self.opr_btn(self.FRAME_COMMAND_OPR, "再生位置リセット", self.on_click_reset)    # リセットボタン
+        self.BTN_RSTPLAY.place(relx=0.66, rely=0.00, relwidth=0.32, relheight=0.20)
+        self.BTN_RSTPLAY.config(state=tk.DISABLED)
 
-        self.button_PosStart = self.opr_btn(self.opr_frame, "開始位置", self.onSetStart)      # 開始位置ボタン
-        self.button_PosStart.place(relx=0.00, rely=0.21, relwidth=0.32, relheight=0.10)
-        self.button_PosStart.config(state=tk.DISABLED)
+        # コントロール領域：画像出力範囲
+        self.BTN_POSSTART = self.opr_btn(self.FRAME_COMMAND_OPR, "開始位置", self.onSetStart)      # 開始位置ボタン
+        self.BTN_POSSTART.place(relx=0.00, rely=0.21, relwidth=0.32, relheight=0.10)
+        self.BTN_POSSTART.config(state=tk.DISABLED)
 
-        self.button_PosEnd = self.opr_btn(self.opr_frame, "終了位置", self.onSetEnd)      # 終了位置ボタン
-        self.button_PosEnd.place(relx=0.33, rely=0.21, relwidth=0.32, relheight=0.10)
-        self.button_PosEnd.config(state=tk.DISABLED)
+        self.BTN_POSEND = self.opr_btn(self.FRAME_COMMAND_OPR, "終了位置", self.onSetEnd)      # 終了位置ボタン
+        self.BTN_POSEND.place(relx=0.33, rely=0.21, relwidth=0.32, relheight=0.10)
+        self.BTN_POSEND.config(state=tk.DISABLED)
 
-        self.button_reset = self.opr_btn(self.opr_frame, "リセット", self.on_click_reset)    # リセットボタン
-        self.button_reset.place(relx=0.66, rely=0.21, relwidth=0.32, relheight=0.10)
-        self.button_reset.config(state=tk.DISABLED)
+        self.BTN_POSRST = self.opr_btn(self.FRAME_COMMAND_OPR, "範囲リセット", self.onResetRange)    # リセットボタン
+        self.BTN_POSRST.place(relx=0.66, rely=0.21, relwidth=0.32, relheight=0.10)
+        self.BTN_POSRST.config(state=tk.DISABLED)
 
-        self.button_close = self.opr_btn(self.opr_frame, "閉じる", self.on_click_close)     # 閉じるボタン
-        self.button_close.place(relx=0.66, rely=0.89, relwidth=0.32, relheight=0.10)
+        # コントロール領域：映像情報
+        self.frameAll_var = tk.StringVar()
+        self.frameAll_var.set("総フレーム数： -")
+        self.LBL_FLAMEALL = tk.Label( self.FRAME_COMMAND_OPR, textvariable=self.frameAll_var, font=(0,11), anchor=tk.NW)   # 走フレームラベル
+        self.LBL_FLAMEALL.place(relx=0.0, rely=0.36, relwidth=0.28, relheight=0.05)
+
+        self.frameAve_var = tk.StringVar()
+        self.frameAve_var.set("秒間フレーム数：- ")
+        self.LBL_FLAMEAVE = tk.Label( self.FRAME_COMMAND_OPR, textvariable=self.frameAve_var, font=(0,11), anchor=tk.NW)   # 平均フレームラベル
+        self.LBL_FLAMEAVE.place(relx=0.29, rely=0.36, relwidth=0.30, relheight=0.05)
+
+        self.LBL_FRAMECAP = tk.Label( self.FRAME_COMMAND_OPR, text="秒間キャプチャ", font=(0,11), anchor=tk.NW)   # 秒間キャプチャラベル
+        self.LBL_FRAMECAP.place(relx=0.60, rely=0.36, relwidth=0.22, relheight=0.05)
+
+        self.freq_var = tk.StringVar()
+        self.freq_var = ("0")
+        self.freqList_list = ("100")
+        self.CMB_FREQ = ttk.Combobox(self.FRAME_COMMAND_OPR, justify="left", font=(0,11),
+                                     textvariable=self.freq_var, values=self.freqList_list)
+        self.CMB_FREQ.place(relx=0.83, rely=0.36, relwidth=0.11, relheight=0.05)
+
+        self.LBL_FREQ = tk.Label( self.FRAME_COMMAND_OPR, text="回", font=(0,11), anchor=tk.NW)   # 回ラベル
+        self.LBL_FREQ.place(relx=0.95, rely=0.36, relwidth=0.04, relheight=0.05)
+
+        self.LBL_POSRANGE = tk.Label( self.FRAME_COMMAND_OPR, text="画像出力範囲:", font=(0,11), anchor=tk.NW)   #画像出力範囲ラベル
+        self.LBL_POSRANGE.place(relx=0.00, rely=0.45, relwidth=0.25, relheight=0.05)
+
+        self.posStart_var = tk.StringVar()
+        self.posStart_var.set("開始位置: -")
+        self.LBL_POSSTART = tk.Label( self.FRAME_COMMAND_OPR, textvariable=self.posStart_var, font=(0,11), anchor=tk.NW)   # 開始位置ラベル
+        self.LBL_POSSTART.place(relx=0.30, rely=0.45, relwidth=0.34, relheight=0.05)
+
+        self.posEnd_var = tk.StringVar()
+        self.posEnd_var.set("終了位置: -")
+        self.LBL_POSEND = tk.Label( self.FRAME_COMMAND_OPR, textvariable=self.posEnd_var, font=(0,11), anchor=tk.NW)   # 終了位置ラベル
+        self.LBL_POSEND.place(relx=0.65, rely=0.45, relwidth=0.34, relheight=0.05)
+
+        # コントロール領域：キャプチャ、出力、閉じるボタン
+        self.BTN_CAP = self.opr_btn(self.FRAME_COMMAND_OPR, "キャプチャ", self.onBtnCapture)    # キャプチャボタン
+        self.BTN_CAP.place(relx=0.02, rely=0.55, relwidth=0.45, relheight=0.30)
+        self.BTN_CAP.config(state=tk.DISABLED)
+
+        self.BTN_OUTPUT = self.opr_btn(self.FRAME_COMMAND_OPR, "出力", self.on_click_reset)    # 出力ボタン
+        self.BTN_OUTPUT.place(relx=0.51, rely=0.55, relwidth=0.45, relheight=0.30)
+        self.BTN_OUTPUT.config(state=tk.DISABLED)
+
+        self.BTN_CLOSE = self.opr_btn(self.FRAME_COMMAND_OPR, "閉じる", self.on_click_close)     # 閉じるボタン
+        self.BTN_CLOSE.place(relx=0.66, rely=0.89, relwidth=0.32, relheight=0.10)
 
     ###############################################################################
     # ボタン定義
@@ -197,16 +281,33 @@ class clipMovie:
         self.outPathStrvar.set(self.outFolderPath)
 
     ###############################################################################
-    # 
+    #  動画出力の開始位置を指定する
     ###############################################################################
     def onSetStart(self):
-        print("start")
+        self.outputStartPos = self.scale_var.get()
+        self.posStart_var.set(f"開始位置: {self.outputStartPos}")
+        keiUtil.logAdd(f"動画出力の開始位置を設定: {self.outputStartPos}")
+        self.BTN_POSRST.config(state=tk.NORMAL)
 
     ###############################################################################
-    # 
+    #  動画出力の終了位置を指定する 
     ###############################################################################
     def onSetEnd(self):
-        print("endpos")
+        self.outputEndPos = self.scale_var.get()
+        self.posEnd_var.set(f"終了位置: {self.outputEndPos}")
+        keiUtil.logAdd(f"動画出力の終了位置を設定: {self.outputEndPos}")
+        self.BTN_POSRST.config(state=tk.NORMAL)
+
+    ###############################################################################
+    #  動画出力範囲をリセットする
+    ###############################################################################
+    def onResetRange(self):
+        self.outputStartPos = 0
+        self.outputEndPos = self.totalCount
+        self.posStart_var.set("開始位置: 0")
+        self.posEnd_var.set(f"終了位置: {self.totalCount}")
+        keiUtil.logAdd(f"動画出力範囲を初期化　0:{self.totalCount}")
+        self.BTN_POSRST.config(state=tk.DISABLED)
 
     ###############################################################################
     # スライダー操作
@@ -218,8 +319,7 @@ class clipMovie:
 
         if ret:
             self.moveCountUp()
-#            self.updateCanvasImage()                        # 読み込んだ画像でイメージを更新する
-            self.updateMovieCount(int(self.scale_var.get()/self.fps) * self.fps)
+            self.updateMovieCount(int(self.scale_var.get()/self.fps) * self.fps)    # 更新フレームずれ対策
         else:
             self.start_movie = False                        # 再生を終了する
             self.capture.set(cv2.CAP_PROP_POS_FRAMES, 0)    # 動画の最初に戻す
@@ -237,6 +337,7 @@ class clipMovie:
         if self.capture.get(cv2.CAP_PROP_POS_FRAMES) == self.totalCount:
             # 現在位置が動画の最後であれば最初に戻って再生開始する
             self.resetPlayStatus()
+            ret, self.video_frame = self.capture.read() # フレームずれ対策
 
         # セット済みのフレームから動画を再生する
         self.start_movie = True
@@ -290,11 +391,36 @@ class clipMovie:
         self.main_window.destroy()
 
     ###############################################################################
+    # キャプチャボタンを押したときの動作
+    ###############################################################################
+    def onBtnCapture(self):
+        # 出力先を選択するダイアログを表示する
+        tempFilename = filedialog.asksaveasfilename(
+            title="名前を付けて保存", initialdir="./", filetypes=[("PNG Image Files", ".png")], initialfile="capture.png"
+        )
+
+        ret, frame = self.capture.read()
+        if ret == False:
+            # フレーム画像の取得に失敗
+            frame_Num = int(self.capture.get(cv2.CAP_PROP_POS_FRAMES))
+            text = "画像の取得に失敗しました。"
+            self.messagebox.showerror("画像取得エラー", f"{text}\n\n{frame_Num}フレーム目:{self.inMoviePath}")
+            keiUtil.logAdd("画像取得エラー", f"{text}\n -> {frame_Num}フレーム目:{self.inMoviePath}", 2)
+            return         
+
+        ret = self.movieOutput(frame, tempFilename)
+        if ret == False:
+            # 画像の出力に失敗
+            text = "画像の出力に失敗しました。"
+            self.messagebox.showerror("画像出力エラー", f"{text}\n\n{tempFilename}")
+            keiUtil.logAdd("画像出力エラー", f"{text}\n -> {tempFilename}", 2)
+
+    ###############################################################################
     # スレッド処理
     ###############################################################################
     def main_thread_func(self):
 
-        while self.set_movie:               # self.set_movie が True の間
+        while self.set_movie:
 
             # 再生中はループの処理を繰り返す
             if self.start_movie:            # 再生中
@@ -313,48 +439,54 @@ class clipMovie:
     def enableWidget(self):
         if self.bCatchedMovie == False:
             # 画像を読み込めていない時はボタン無効
-            self.button_play.config(state=tk.DISABLED)
-            self.button_stop.config(state=tk.DISABLED)
-            self.button_reset.config(state=tk.DISABLED)
-            self.button_PosStart.config(state=tk.DISABLED)
-            self.button_PosEnd.config(state=tk.DISABLED)
-            self.button_Capture.config(state=tk.DISABLED)
-            self.scale.config(state=tk.DISABLED)
+            self.BTN_PLAY.config(state=tk.DISABLED)
+            self.BTN_STOP.config(state=tk.DISABLED)
+            self.BTN_RSTPLAY.config(state=tk.DISABLED)
+            self.BTN_POSSTART.config(state=tk.DISABLED)
+            self.BTN_POSEND.config(state=tk.DISABLED)
+            self.BTN_CAP.config(state=tk.DISABLED)
+            self.SCR_SCALE.config(state=tk.DISABLED)
             return
 
         if self.start_movie == False:
             # 動画を再生していない (≒再生可能)
-            self.button_play.config(state=tk.NORMAL)
-            self.button_stop.config(state=tk.DISABLED)    # 再生中に押せない
-            self.button_reset.config(state=tk.NORMAL)
-            self.button_close.config(state=tk.NORMAL)
-            self.button_input.config(state=tk.NORMAL)
-            self.button_output.config(state=tk.NORMAL)
-            self.button_PosStart.config(state=tk.NORMAL)    # 常に押せる (動画読み込み時に有効化)
-            self.button_PosEnd.config(state=tk.NORMAL)      # 常に押せる (動画読み込み時に有効化)
-            self.button_Capture.config(state=tk.NORMAL)
-            self.scale.config(state=tk.NORMAL)          # 再生中のスライダー操作で落ちるバグがあるため封印
+            self.BTN_PLAY.config(state=tk.NORMAL)
+            self.BTN_STOP.config(state=tk.DISABLED)    # 再生中に押せない
+            self.BTN_RSTPLAY.config(state=tk.NORMAL)
+            self.BTN_CLOSE.config(state=tk.NORMAL)
+            self.BTN_INPUTPATH.config(state=tk.NORMAL)
+            self.BTN_OUTPUTPATH.config(state=tk.NORMAL)
+            self.BTN_POSSTART.config(state=tk.NORMAL)    # 常に押せる (動画読み込み時に有効化)
+            self.BTN_POSEND.config(state=tk.NORMAL)      # 常に押せる (動画読み込み時に有効化)
+            self.BTN_CAP.config(state=tk.NORMAL)
+            self.BTN_OUTPUT.config(state=tk.NORMAL)
+            self.SCR_SCALE.config(state=tk.NORMAL)          # 再生中のスライダー操作で落ちるバグがあるため封印
         else:
-            self.button_play.config(state=tk.DISABLED)
-            self.button_stop.config(state=tk.NORMAL)    # 再生中に押せる
-            self.button_reset.config(state=tk.DISABLED)
-            self.button_close.config(state=tk.DISABLED)
-            self.button_input.config(state=tk.DISABLED)
-            self.button_output.config(state=tk.DISABLED)
-            self.button_Capture.config(state=tk.DISABLED)
-            self.scale.config(state=tk.DISABLED)          # 再生中のスライダー操作で落ちるバグがあるため封印
+            self.BTN_PLAY.config(state=tk.DISABLED)
+            self.BTN_STOP.config(state=tk.NORMAL)    # 再生中に押せる
+            self.BTN_RSTPLAY.config(state=tk.DISABLED)
+            self.BTN_CLOSE.config(state=tk.DISABLED)
+            self.BTN_INPUTPATH.config(state=tk.DISABLED)
+            self.BTN_OUTPUTPATH.config(state=tk.DISABLED)
+            self.BTN_CAP.config(state=tk.DISABLED)
+            self.BTN_OUTPUT.config(state=tk.DISABLED)
+            self.SCR_SCALE.config(state=tk.DISABLED)          # 再生中のスライダー操作で落ちるバグがあるため封印
 
     ###############################################################################
     # 現在のフレームの内容で描画を更新する
     ###############################################################################
     def moveCountUp(self):
+#         if self.capture.get(cv2.CAP_PROP_POS_FRAMES) < self.capture.get(cv2.CAP_PROP_FRAME_COUNT):
+#             self.capture.set(cv2.CAP_PROP_POS_FRAMES, self.capture.get(cv2.CAP_PROP_POS_FRAMES))
+# #            self.capture.set(cv2.CAP_PROP_POS_FRAMES, self.capture.get(cv2.CAP_PROP_POS_FRAMES))
+#             return
+
         # キャンバス画像を更新
         self.updateCanvasImage()
 
         # 現在の動画位置を取得し、描画のカウントを更新する
         frame_Num = int(self.capture.get(cv2.CAP_PROP_POS_FRAMES))
         self.updateMovieCount(frame_Num)    # 再生秒の更新
-        self.scale_var.set(frame_Num)       # スクロールバーの更新
 
     ###############################################################################
     # キャンバス画像を更新する
@@ -455,21 +587,21 @@ class clipMovie:
 
         # 動画のフォーマットチェック
         if False == self.checkMovieFormat():
-            # self.inMoviePath = ""
-            # self.inPathStrvar.set(self.inMoviePath)
-            # self.enableWidget()
             return False
 
-        # 動画のフレーム数の取得
+        # 動画の秒間フレーム数の取得
         tempfps = self.capture.get(cv2.CAP_PROP_FPS)
         self.fps = int(int((tempfps+0.5)*10)/10)                    # fpsを小数点以下で四捨五入
-        keiUtil.logAdd(f"「{self.movie_FileName}」, 平均フレーム数:{self.fps} ({self.capture.get(cv2.CAP_PROP_FPS)})")
+        keiUtil.logAdd(f"「{self.movie_FileName}」, 秒間フレーム数:{self.fps} ({self.capture.get(cv2.CAP_PROP_FPS)})")
+        self.frameAve_var.set(f"秒間フレーム数：{self.fps}")
 
         # 動画の総フレーム数の取得
         self.totalCount = int(self.capture.get(cv2.CAP_PROP_FRAME_COUNT))
         keiUtil.logAdd(f"総フレーム数:{self.totalCount} (再生時間：{self.getTotalMovieCount()})")
-
-        self.scale.config(to=self.totalCount)
+        self.SCR_SCALE.config(to=self.totalCount)                   # スクロールバーの最大値を動画に合わせる
+        self.frameAll_var.set(f"総フレーム数： {self.totalCount}")
+        self.posStart_var.set("開始位置: 0")
+        self.posEnd_var.set(f"終了位置: {self.totalCount}")
 
         # 動画タイトルの更新
         self.movieStrvar.set(self.movie_FileName)
@@ -489,8 +621,8 @@ class clipMovie:
            self.importError()
            return False
 
-        self.video_frame = self.capture.read() # フレーム画像の読み込み
-        if self.video_frame is None:
+        ret, self.video_frame = self.capture.read() # フレーム画像の読み込み
+        if self.video_frame is None or ret == False:
            self.importError()
            return False
 
@@ -505,6 +637,7 @@ class clipMovie:
         tk.messagebox.showwarning(title="ImportError", message=f"{errorText}/n{self.inMoviePath}")
         keiUtil.logAdd(f"{errorText} -> {self.inMoviePath}")
 
+        self.capture.release()
         self.inMoviePath = ""
         self.inPathStrvar.set(self.inMoviePath)
         self.bCatchedMovie = False
@@ -515,13 +648,18 @@ class clipMovie:
     ################################################################################
     def updateMovieCount(self, frameNum=0):
         if self.bCatchedMovie == False:
+            # 動画を読み込んでいなければ return
             return
+        
+        # スクロールバーの更新
+        self.scale_var.set(frameNum)       
 
-        if ( frameNum == 0 or (frameNum % self.fps) == 0):
+        # 動画カウントの更新
+        if ( frameNum == 0 or (frameNum % (self.fps)) == 0):
+            # 動画読み込み時 or 1秒に1回更新
             currentTime = keiUtil.secToTime((int)(frameNum/self.fps))
-            maxTime = keiUtil.secToTime((int)(self.totalCount/self.fps))
             self.secStrvar.set(f"{currentTime[0]:02d}:{currentTime[1]:02d}:{currentTime[2]:02d}/"
-                f" {self.getTotalMovieCount()}")    # 動画カウントの更新
+                f" {self.getTotalMovieCount()}")
 
     ###############################################################################
     # 動画の総時間を取得する
@@ -567,6 +705,20 @@ class clipMovie:
                 keiUtil.logAdd(f"画像出力:{pictPath}")
             
             count += 1  # フレームのカウントアップ
+
+    ###############################################################################
+    # キャプチャ出力
+    #  引数1: 画像イメージ
+    #  引数1: 出力先パス
+    ################################################################################
+    def movieOutput(self, frame, pictPath):
+
+        ret = cv2.imwrite(pictPath, frame)
+        if ret == False:
+            keiUtil.logAdd(f"画像出力失敗:{pictPath}", 2)
+            return False
+
+        keiUtil.logAdd(f"画像出力:{pictPath}")
 
 
 ###############################################################################
