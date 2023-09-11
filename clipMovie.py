@@ -139,10 +139,20 @@ class clipMovie(tk.Frame):
         )                        
         self.SCR_SCALE.place(relx=0.01, rely=0.01, relwidth=0.98, relheight=0.65)
 
+        self.frameAll_var = tk.StringVar()
+        self.frameAll_var.set("総フレーム数： -")
+        self.LBL_FLAMEALL = tk.Label( self.FRAME_CANVAS_OPR, textvariable=self.frameAll_var, font=(0,11), anchor=tk.NW)   # 走フレームラベル
+        self.LBL_FLAMEALL.place(relx=0.30, rely=0.66, relwidth=0.20, relheight=0.30)
+
+        self.frameAve_var = tk.StringVar()
+        self.frameAve_var.set("秒間フレーム数：- ")
+        self.LBL_FLAMEAVE = tk.Label( self.FRAME_CANVAS_OPR, textvariable=self.frameAve_var, font=(0,11), anchor=tk.NW)   # 平均フレームラベル
+        self.LBL_FLAMEAVE.place(relx=0.51, rely=0.66, relwidth=0.20, relheight=0.30)
+
         self.secStrvar = tk.StringVar()
         self.secStrvar.set("00:00:00/ 00:00:00")
         self.LBL_SECCOUNT = tk.Label(self.FRAME_CANVAS_OPR, textvariable=self.secStrvar, font=(0,12))# 再生時間ラベル
-        self.LBL_SECCOUNT.place(relx=0.79, rely=0.66, relwidth=0.25, relheight=0.20)
+        self.LBL_SECCOUNT.place(relx=0.72, rely=0.66, relwidth=0.25, relheight=0.30)
 
         # 操作ボタン領域
         self.LBL_INPUTFILE = tk.Label( self.FRAME_PATH, text="読み込みファイル", anchor=tk.W)   # 読み込みファイルラベル
@@ -151,6 +161,7 @@ class clipMovie(tk.Frame):
         self.inPathStrvar = tk.StringVar()                                                    # 読み込みファイルパス
         self.EDT_INPUTPATH = tk.Entry(self.FRAME_PATH, textvariable=self.inPathStrvar)
         self.EDT_INPUTPATH.place(relx=0.00, rely=0.25, relwidth=0.88, relheight=0.24)
+        self.EDT_INPUTPATH.config(state="readonly")
 
         self.BTN_INPUTPATH = self.opr_btn(self.FRAME_PATH, "開く", self.on_click_moviePath)    # ファイルを開くボタン(in)
         self.BTN_INPUTPATH.place(relx=0.89, rely=0.25, relwidth=0.10, relheight=0.24)
@@ -161,6 +172,7 @@ class clipMovie(tk.Frame):
         self.outPathStrvar = tk.StringVar()
         self.EDT_OUTPUTPATH = tk.Entry(self.FRAME_PATH, textvariable=self.outPathStrvar)           # 出力先パス
         self.EDT_OUTPUTPATH.place(relx=0.00, rely=0.75, relwidth=0.88, relheight=0.24)
+        self.EDT_OUTPUTPATH.config(state="readonly")
 
         self.BTN_OUTPUTPATH = self.opr_btn(self.FRAME_PATH, "開く", self.on_click_folderPath) # ファイルを開くボタン(out)　
         self.BTN_OUTPUTPATH.place(relx=0.89, rely=0.75, relwidth=0.10, relheight=0.24)
@@ -192,28 +204,18 @@ class clipMovie(tk.Frame):
         self.BTN_POSRST.config(state=tk.DISABLED)
 
         # コントロール領域：映像情報
-        self.frameAll_var = tk.StringVar()
-        self.frameAll_var.set("総フレーム数： -")
-        self.LBL_FLAMEALL = tk.Label( self.FRAME_COMMAND_OPR, textvariable=self.frameAll_var, font=(0,11), anchor=tk.NW)   # 走フレームラベル
-        self.LBL_FLAMEALL.place(relx=0.0, rely=0.36, relwidth=0.28, relheight=0.05)
-
-        self.frameAve_var = tk.StringVar()
-        self.frameAve_var.set("秒間フレーム数：- ")
-        self.LBL_FLAMEAVE = tk.Label( self.FRAME_COMMAND_OPR, textvariable=self.frameAve_var, font=(0,11), anchor=tk.NW)   # 平均フレームラベル
-        self.LBL_FLAMEAVE.place(relx=0.29, rely=0.36, relwidth=0.30, relheight=0.05)
-
-        self.LBL_FRAMECAP = tk.Label( self.FRAME_COMMAND_OPR, text="秒間キャプチャ", font=(0,11), anchor=tk.NW)   # 秒間キャプチャラベル
-        self.LBL_FRAMECAP.place(relx=0.60, rely=0.36, relwidth=0.22, relheight=0.05)
+        self.LBL_FRAMECAP = tk.Label( self.FRAME_COMMAND_OPR, text="キャプチャ頻度:", font=(0,11), anchor=tk.NW)   # 秒間キャプチャラベル
+        self.LBL_FRAMECAP.place(relx=0.40, rely=0.36, relwidth=0.23, relheight=0.05)
 
         self.freq_var = tk.StringVar()
-        self.freq_var = ("0")
-        self.freqList_list = ("100")
+        self.freqList_list = ("1")
         self.CMB_FREQ = ttk.Combobox(self.FRAME_COMMAND_OPR, justify="left", font=(0,11),
                                      textvariable=self.freq_var, values=self.freqList_list)
-        self.CMB_FREQ.place(relx=0.83, rely=0.36, relwidth=0.11, relheight=0.05)
+        self.CMB_FREQ.set("1")
+        self.CMB_FREQ.place(relx=0.64, rely=0.36, relwidth=0.12, relheight=0.05)
 
-        self.LBL_FREQ = tk.Label( self.FRAME_COMMAND_OPR, text="回", font=(0,11), anchor=tk.NW)   # 回ラベル
-        self.LBL_FREQ.place(relx=0.95, rely=0.36, relwidth=0.04, relheight=0.05)
+        self.LBL_FREQ = tk.Label( self.FRAME_COMMAND_OPR, text="フレーム毎", font=(0,11), anchor=tk.NW)   # 回ラベル
+        self.LBL_FREQ.place(relx=0.77, rely=0.36, relwidth=0.20, relheight=0.05)
 
         self.LBL_POSRANGE = tk.Label( self.FRAME_COMMAND_OPR, text="画像出力範囲:", font=(0,11), anchor=tk.NW)   #画像出力範囲ラベル
         self.LBL_POSRANGE.place(relx=0.00, rely=0.45, relwidth=0.25, relheight=0.05)
@@ -233,7 +235,7 @@ class clipMovie(tk.Frame):
         self.BTN_CAP.place(relx=0.02, rely=0.55, relwidth=0.45, relheight=0.30)
         self.BTN_CAP.config(state=tk.DISABLED)
 
-        self.BTN_OUTPUT = self.opr_btn(self.FRAME_COMMAND_OPR, "出力", self.on_click_reset)    # 出力ボタン
+        self.BTN_OUTPUT = self.opr_btn(self.FRAME_COMMAND_OPR, "出力", self.onBtnOutputPicture)    # 出力ボタン
         self.BTN_OUTPUT.place(relx=0.51, rely=0.55, relwidth=0.45, relheight=0.30)
         self.BTN_OUTPUT.config(state=tk.DISABLED)
 
@@ -416,6 +418,15 @@ class clipMovie(tk.Frame):
             keiUtil.logAdd("画像出力エラー", f"{text}\n -> {tempFilename}", 2)
 
     ###############################################################################
+    # 出力ボタンを押したときの動作
+    ###############################################################################
+    def onBtnOutputPicture(self):
+
+        var = 0
+        # self.movieClipping(OutputTime)
+        # 対応中
+
+    ###############################################################################
     # スレッド処理
     ###############################################################################
     def main_thread_func(self):
@@ -594,6 +605,7 @@ class clipMovie(tk.Frame):
         self.fps = int(int((tempfps+0.5)*10)/10)                    # fpsを小数点以下で四捨五入
         keiUtil.logAdd(f"「{self.movie_FileName}」, 秒間フレーム数:{self.fps} ({self.capture.get(cv2.CAP_PROP_FPS)})")
         self.frameAve_var.set(f"秒間フレーム数：{self.fps}")
+        self.setCmbBoxItems(self.fps)								# コンボボックスの要素を fps に応じて生成
 
         # 動画の総フレーム数の取得
         self.totalCount = int(self.capture.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -611,6 +623,20 @@ class clipMovie(tk.Frame):
 
         # コントロールを有効化する
         self.enableWidget()
+
+    ###############################################################################
+    # コンボボックスの選択肢を fpsのフレーム数を上限に 更新する
+    #  引数1: int fps 入力動画の秒間フレーム数
+    ################################################################################
+    def setCmbBoxItems(self, fps):
+
+        listItems = []                  # 変数格納用の箱を作る
+        for num in range(fps, 0, -1):      # 1~fpsまでをコンボボックスの要素に追加する
+            listItems.append(f"{num}")
+
+        self.freqList_list = listItems  # コンボボックスの要素用変数を上書き
+        self.CMB_FREQ.configure(values = self.freqList_list)    # コンボボックスの設定を更新
+        self.CMB_FREQ.set(fps)
 
     ###############################################################################
     # 読み込んだ動画が未対応
