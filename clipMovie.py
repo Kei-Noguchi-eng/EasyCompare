@@ -71,8 +71,15 @@ class clipMovie(tk.Frame):
  	#  ウィンドウの×ボタンでの終了
     ###############################################################################
     def delete_window(self):
+        if self.start_movie == True:
+            # 再生中はメッセージを出して return
+            tk.messagebox.showwarning(
+            title = "終了エラー",
+            message = "動画の再生中は終了できません。")
+            return
+
+
         # 終了確認のメッセージ表示
-        print("test")
         ret = tk.messagebox.askyesno(
             title = "終了確認",
             message = "プログラムを終了しますか？")
@@ -204,31 +211,40 @@ class clipMovie(tk.Frame):
         self.BTN_POSRST.config(state=tk.DISABLED)
 
         # コントロール領域：映像情報
-        self.LBL_FRAMECAP = tk.Label( self.FRAME_COMMAND_OPR, text="キャプチャ頻度:", font=(0,11), anchor=tk.NW)   # 秒間キャプチャラベル
-        self.LBL_FRAMECAP.place(relx=0.40, rely=0.36, relwidth=0.23, relheight=0.05)
-
-        self.freq_var = tk.StringVar()
-        self.freqList_list = ("1")
-        self.CMB_FREQ = ttk.Combobox(self.FRAME_COMMAND_OPR, justify="left", font=(0,11),
-                                     textvariable=self.freq_var, values=self.freqList_list)
-        self.CMB_FREQ.set("1")
-        self.CMB_FREQ.place(relx=0.64, rely=0.36, relwidth=0.12, relheight=0.05)
-
-        self.LBL_FREQ = tk.Label( self.FRAME_COMMAND_OPR, text="フレーム毎", font=(0,11), anchor=tk.NW)   # 回ラベル
-        self.LBL_FREQ.place(relx=0.77, rely=0.36, relwidth=0.20, relheight=0.05)
-
-        self.LBL_POSRANGE = tk.Label( self.FRAME_COMMAND_OPR, text="画像出力範囲:", font=(0,11), anchor=tk.NW)   #画像出力範囲ラベル
-        self.LBL_POSRANGE.place(relx=0.00, rely=0.45, relwidth=0.25, relheight=0.05)
+        self.LBL_POSRANGE = tk.Label( self.FRAME_COMMAND_OPR, text="画像出力範囲", font=(0,11), anchor=tk.CENTER, background='#d0eaff')   #画像出力範囲ラベル
+        self.LBL_POSRANGE.place(relx=0.01, rely=0.38, relwidth=0.31, relheight=0.05)
 
         self.posStart_var = tk.StringVar()
         self.posStart_var.set("開始位置: -")
-        self.LBL_POSSTART = tk.Label( self.FRAME_COMMAND_OPR, textvariable=self.posStart_var, font=(0,11), anchor=tk.NW)   # 開始位置ラベル
-        self.LBL_POSSTART.place(relx=0.30, rely=0.45, relwidth=0.34, relheight=0.05)
+        self.LBL_POSSTART = tk.Label( self.FRAME_COMMAND_OPR, textvariable=self.posStart_var, font=(0,11), anchor=tk.NW)                # 開始位置ラベル
+        self.LBL_POSSTART.place(relx=0.40, rely=0.38, relwidth=0.25, relheight=0.05)
 
         self.posEnd_var = tk.StringVar()
         self.posEnd_var.set("終了位置: -")
-        self.LBL_POSEND = tk.Label( self.FRAME_COMMAND_OPR, textvariable=self.posEnd_var, font=(0,11), anchor=tk.NW)   # 終了位置ラベル
-        self.LBL_POSEND.place(relx=0.65, rely=0.45, relwidth=0.34, relheight=0.05)
+        self.LBL_POSEND = tk.Label( self.FRAME_COMMAND_OPR, textvariable=self.posEnd_var, font=(0,11), anchor=tk.NW)                    # 終了位置ラベル
+        self.LBL_POSEND.place(relx=0.70, rely=0.38, relwidth=0.25, relheight=0.05)
+
+     
+        self.radioValue = tk.IntVar(value = 0)     # 初期値
+        self.RDO_FRQSECOND = tk.Radiobutton(self.FRAME_COMMAND_OPR, text = "1秒毎にキャプチャを出力する", font=(1,9), justify="left",       # 1秒毎ラジオボタン
+                           variable = self.radioValue, value = 0)
+        self.RDO_FRQSECOND.place(relx=0.00, rely=0.47, relwidth=0.40, relheight=0.05)
+
+        self.RDO_FRQFRAME = tk.Radiobutton(self.FRAME_COMMAND_OPR, text = "", justify="left",           # フレーム指定ラジオボタン
+                           variable = self.radioValue, value = 1) 
+        self.RDO_FRQFRAME.place(relx=0.44, rely=0.47, relwidth=0.05, relheight=0.05)
+        self.RDO_FRQFRAME.config(state=tk.DISABLED)
+ 
+        self.freq_var = tk.StringVar()  # コンボボックスの選択値取得用変数
+        self.freqList_list = ("1F")                                                                      # コンボボックス要素用変数
+        self.CMB_FREQ = ttk.Combobox(self.FRAME_COMMAND_OPR, justify="right", font=(0,9),
+                                     textvariable=self.freq_var, values=self.freqList_list)             # フレーム指定コンボボックス
+        self.CMB_FREQ.set("1F")
+        self.CMB_FREQ.place(relx=0.49, rely=0.47, relwidth=0.18, relheight=0.05)
+        self.CMB_FREQ.config(state=tk.DISABLED)
+
+        self.LBL_FREQ = tk.Label( self.FRAME_COMMAND_OPR, text="毎にキャプチャ出力する", font=(1,9), anchor=tk.NW)   # フレーム指定ラベル
+        self.LBL_FREQ.place(relx=0.68, rely=0.47, relwidth=0.40, relheight=0.05)
 
         # コントロール領域：キャプチャ、出力、閉じるボタン
         self.BTN_CAP = self.opr_btn(self.FRAME_COMMAND_OPR, "キャプチャ", self.onBtnCapture)    # キャプチャボタン
@@ -421,8 +437,23 @@ class clipMovie(tk.Frame):
     # 出力ボタンを押したときの動作
     ###############################################################################
     def onBtnOutputPicture(self):
+        
+        if self.inPathStrvar == "":
+            print("ng")
+        elif  self.outPathStrvar == "":
+            print("ng")
+
+        outputFreq = self.freq_var.get()
 
         var = 0
+        # メッセージボックス出す
+
+        # OKなら出力ディレクトリ作成
+
+        # if文で分岐
+        # 1秒ごとに出力　or コンボボックス指定
+
+
         # self.movieClipping(OutputTime)
         # 対応中
 
@@ -455,6 +486,7 @@ class clipMovie(tk.Frame):
             self.BTN_RSTPLAY.config(state=tk.DISABLED)
             self.BTN_POSSTART.config(state=tk.DISABLED)
             self.BTN_POSEND.config(state=tk.DISABLED)
+            self.CMB_FREQ.config(state=tk.DISABLED)
             self.BTN_CAP.config(state=tk.DISABLED)
             self.SCR_SCALE.config(state=tk.DISABLED)
             return
@@ -630,13 +662,29 @@ class clipMovie(tk.Frame):
     ################################################################################
     def setCmbBoxItems(self, fps):
 
-        listItems = []                  # 変数格納用の箱を作る
-        for num in range(fps, 0, -1):      # 1~fpsまでをコンボボックスの要素に追加する
-            listItems.append(f"{num}")
+        listItems = []                          # 変数格納用の箱を作る
 
-        self.freqList_list = listItems  # コンボボックスの要素用変数を上書き
+        listItems.append(f"{fps * 10}F(10秒)")
+        listItems.append(f"{fps * 5}F(5秒)")
+        listItems.append(f"{fps * 3}F(3秒)")
+        listItems.append(f"{fps * 2}F(2秒)")
+
+        defFpsText = f"{fps * 1}F(1秒)"
+        listItems.append(defFpsText)
+
+        # 1Fになるまでフレーム数を 1/2 にしていく
+        oldFrame = fps
+        while oldFrame != 1 or oldFrame < 1:
+            frame = int(oldFrame/2)
+            sec = frame/fps
+            listItems.append(f"{frame}F({sec:.2}秒)")
+            oldFrame = frame
+
+        self.freqList_list = listItems                          # コンボボックスの要素用変数を上書き
         self.CMB_FREQ.configure(values = self.freqList_list)    # コンボボックスの設定を更新
-        self.CMB_FREQ.set(fps)
+        self.CMB_FREQ.set(defFpsText)                           # 1秒毎(fps)に値を設定
+        self.CMB_FREQ.config(state=tk.NORMAL)                   # コンボボックスの有効化
+        self.RDO_FRQFRAME.config(state=tk.NORMAL)               # ラジオボタンの有効化
 
     ###############################################################################
     # 読み込んだ動画が未対応
