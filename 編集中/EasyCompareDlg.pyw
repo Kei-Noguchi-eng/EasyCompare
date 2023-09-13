@@ -6,7 +6,7 @@
 import tkinter as tk
 import keiUtil
 import configparser
-import clipMovie
+import captureMovie
 
 # import time
 # time.sleep(1)     " 待ち時間用 1=1秒
@@ -91,7 +91,7 @@ class MainFrame(tk.Frame):
         # ClipMovieDlg の作成
         subWindowClip = tk.Toplevel(self)           # サブウィンドウを開く
 #        clipMovie.clipMovie(subWindowClip) # Viewクラス生成
-        clipMovie.clipMovie(subWindowClip) # Viewクラス生成
+        captureMovie.captureMovie(subWindowClip) # Viewクラス生成
 
         # # モーダルにする設定
         subWindowClip.grab_set()                    # モーダルにする

@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 ###############################################################################
-# clipMovie.py
+# captureMovie.py
 #   動画からフレーム単位で画像を抽出する
 ################################################################################
 import os
@@ -9,6 +9,7 @@ import time
 import cv2
 import threading    # スレッド処理
 import keiUtil
+import configparser # これは後で外す
 
 # GUI関係
 import tkinter as tk
@@ -17,13 +18,23 @@ from tkinter import filedialog
 from tkinter.filedialog import askopenfile
 from PIL import Image, ImageOps, ImageTk
 
+inifile = configparser.SafeConfigParser()
+inifile.read('settings.ini')
+
+
+# 単体起動の間ここに追加
+keiUtil.checkExitFolder(keiUtil.managementArea) # 管理領域の作成
+keiUtil.toolName = "CaptureMovieDlg"
+keiUtil.execDay = keiUtil.getDay() # アプリケーションの起動日の取得
+keiUtil.logAdd("CaptureMovie 起動", 1)
+
 # https://qiita.com/yutaka_m/items/f3bb883a5ffc860fcfca 参考
 # qiita の yutaka_m(yuta mori) 様のページを参考にしています
 
 ###############################################################################
-# ClipMovieクラス
+# captureMovie クラス
 ###############################################################################
-class clipMovie(tk.Frame):
+class captureMovie(tk.Frame):
  
     ###############################################################################
  	# コンストラクタ
@@ -52,7 +63,7 @@ class clipMovie(tk.Frame):
     ###############################################################################
     def init_var(self):
         self.inMoviePath:str             # 読み込みファイルのパス
-        self.folderPath:str              # 読み込みファイルのパス
+        self.outFolderPath:str              # 出力先フォルダのパス
         self.movie_FileName:str = ""     # 動画のファイル名
         self.totalCount:int = 0          # 動画の総フレーム数
         self.fps:int = 0                 # 動画のfps数
@@ -87,7 +98,7 @@ class clipMovie(tk.Frame):
         if ret == True:
             self.release_capture()      # 動画イメージの解放
             self.master.destroy()
-            keiUtil.logAdd("ClipMovie 終了", 1)
+            keiUtil.logAdd("CaptureMovie 終了", 1)
 
     ###############################################################################
  	# イメージの解放
@@ -251,6 +262,12 @@ class clipMovie(tk.Frame):
         self.BTN_CAP.place(relx=0.02, rely=0.55, relwidth=0.45, relheight=0.30)
         self.BTN_CAP.config(state=tk.DISABLED)
 
+        self.cap_var = tk.BooleanVar()
+        self.CHK_CAP = tk.Checkbutton(self.FRAME_COMMAND_OPR, variable=self.cap_var, text="出力先指定を省略する", anchor = tk.W)
+        self.CHK_CAP.place(relx=0.02, rely=0.86, relwidth=0.45, relheight=0.05)
+        self.CHK_CAP.config(state=tk.DISABLED)
+        self.cap_var.set(False)
+
         self.BTN_OUTPUT = self.opr_btn(self.FRAME_COMMAND_OPR, "出力", self.onBtnOutputPicture)    # 出力ボタン
         self.BTN_OUTPUT.place(relx=0.51, rely=0.55, relwidth=0.45, relheight=0.30)
         self.BTN_OUTPUT.config(state=tk.DISABLED)
@@ -275,7 +292,10 @@ class clipMovie(tk.Frame):
     ###############################################################################
     def on_click_moviePath(self):
         # 入力動画のパスを取得してエディットコントロールを更新
-        self.get_moviePath()       #
+        ret = self.get_moviePath()       #
+        if ret == False:
+            return
+
         self.inPathStrvar.set(self.inMoviePath)
 
         ret = self.analyzeMovie()
@@ -292,10 +312,13 @@ class clipMovie(tk.Frame):
         self.thread_main.start()
 
     ###############################################################################
-    # ファイルを開くボタン(out) を押したときの動作
+    # フォルダを開くボタン(out) を押したときの動作
     ###############################################################################
     def on_click_folderPath(self):
-        self.get_folderPath()
+        ret = self.get_folderPath()
+        if ret == False:
+            return
+
         self.outPathStrvar.set(self.outFolderPath)
 
     ###############################################################################
@@ -408,6 +431,8 @@ class clipMovie(tk.Frame):
         # ウィンドウを破棄する
         self.main_window.destroy()
 
+        keiUtil.logAdd("CaptureMovie 終了", 1)
+
     ###############################################################################
     # キャプチャボタンを押したときの動作
     ###############################################################################
@@ -416,46 +441,67 @@ class clipMovie(tk.Frame):
         tempFilename = filedialog.asksaveasfilename(
             title="名前を付けて保存", initialdir="./", filetypes=[("PNG Image Files", ".png")], initialfile="capture.png"
         )
+        if tempFilename == "":
+            return
 
         ret, frame = self.capture.read()
         if ret == False:
             # フレーム画像の取得に失敗
             frame_Num = int(self.capture.get(cv2.CAP_PROP_POS_FRAMES))
             text = "画像の取得に失敗しました。"
-            self.messagebox.showerror("画像取得エラー", f"{text}\n\n{frame_Num}フレーム目:{self.inMoviePath}")
-            keiUtil.logAdd("画像取得エラー", f"{text}\n -> {frame_Num}フレーム目:{self.inMoviePath}", 2)
+            tk.messagebox.showerror("画像取得エラー", f"{text}\n\n{frame_Num}フレーム目:{self.inMoviePath}")
+            keiUtil.logAdd(f"{text}\n -> {frame_Num}フレーム目:{self.inMoviePath}", 2)
             return         
 
         ret = self.movieOutput(frame, tempFilename)
         if ret == False:
             # 画像の出力に失敗
             text = "画像の出力に失敗しました。"
-            self.messagebox.showerror("画像出力エラー", f"{text}\n\n{tempFilename}")
-            keiUtil.logAdd("画像出力エラー", f"{text}\n -> {tempFilename}", 2)
+            tk.messagebox.showerror("画像出力エラー", f"{text}\n\n{tempFilename}")
+            keiUtil.logAdd(f"{text}\n -> {tempFilename}", 2)
 
     ###############################################################################
     # 出力ボタンを押したときの動作
     ###############################################################################
     def onBtnOutputPicture(self):
         
+        # パスが空なら return
         if self.inPathStrvar == "":
             print("ng")
+            return
         elif  self.outPathStrvar == "":
             print("ng")
+            return
 
-        outputFreq = self.freq_var.get()
 
-        var = 0
-        # メッセージボックス出す
+        if self.radioValue.get() == 0:
+            # 1秒ごとにキャプチャを行う
+            captureFreq = self.fps
+        else:
+            # コンボボックスの選択値でキャプチャを行う
+            strCmb = self.freq_var.get()
+            captureFreq = int(strCmb[0:strCmb.find('F')])    # Fより前の部分を切り出す
 
+        # 画像の出力に失敗
+        messageText = f"出力ファイル：{self.inMoviePath}\n"\
+                        f"出力パス：{self.outFolderPath}\n"\
+                        f"キャプチャ頻度：{captureFreq}F\n"\
+                        f"キャプチャ範囲： {self.outputStartPos} ~ {self.outputEndPos}\n\n"\
+                        "上記の設定でキャプチャを出力します。"
+        ret = tk.messagebox.askyesno("画像出力", f"{messageText}")
+
+        # 確認のメッセージボックス表示
+        if ret == False:
+            # 選択が No なら return
+            return
+        
         # OKなら出力ディレクトリ作成
+        keiUtil.logAdd(f"キャプチャ範囲：{self.outputStartPos} ~ {self.outputEndPos}  "\
+                       f"キャプチャ頻度：{captureFreq}", 1)
+        keiUtil.logAdd(f"キャプチャ出力：{self.inMoviePath} -> {self.outFolderPath}", 1)
 
-        # if文で分岐
-        # 1秒ごとに出力　or コンボボックス指定
-
-
-        # self.movieClipping(OutputTime)
-        # 対応中
+        # キャプチャ出力
+        self.movieCapture(self.outFolderPath, self.outputStartPos, self.outputEndPos, captureFreq)
 
     ###############################################################################
     # スレッド処理
@@ -593,8 +639,10 @@ class clipMovie(tk.Frame):
     def get_moviePath(self):
         # ファイルダイアログを開く
         self.inMoviePath = tk.filedialog.askopenfilename(title="動画ファイルを選択してください,", filetypes=self.movieFile_filter)
+        if self.inMoviePath == "":
+            return False
+
         keiUtil.logAdd(f"入力動画パス:{self.inMoviePath}")
-        return
 
     ###############################################################################
     # 出力先フォルダパスを取得する
@@ -602,8 +650,10 @@ class clipMovie(tk.Frame):
     def get_folderPath(self):
         # ファイルダイアログを開く
         self.outFolderPath = tk.filedialog.askdirectory(title="出力先フォルダを選択してください,")
+        if self.inMoviePath == "":
+            return False
+
         keiUtil.logAdd(f"出力画像パス:{self.outFolderPath}")
-        return
     
     ###############################################################################
     # 動画の情報の解析
@@ -644,8 +694,10 @@ class clipMovie(tk.Frame):
         keiUtil.logAdd(f"総フレーム数:{self.totalCount} (再生時間：{self.getTotalMovieCount()})")
         self.SCR_SCALE.config(to=self.totalCount)                   # スクロールバーの最大値を動画に合わせる
         self.frameAll_var.set(f"総フレーム数： {self.totalCount}")
-        self.posStart_var.set("開始位置: 0")
+        self.posStart_var.set("開始位置: 0")                # 動画表示範囲
         self.posEnd_var.set(f"終了位置: {self.totalCount}")
+        self.outputStartPos = 0                             # 動画出力範囲
+        self.outputEndPos = self.totalCount
 
         # 動画タイトルの更新
         self.movieStrvar.set(self.movie_FileName)
@@ -743,42 +795,48 @@ class clipMovie(tk.Frame):
         return f"{maxTime[0]:02d}:{maxTime[1]:02d}:{maxTime[2]:02d}"
 
     ###############################################################################
-    # 動画のクリッピング
-    #  引数1: str OutputTime 出力時刻(文字)
+    # 動画のキャプチャ
+    #  引数1: str outFolderPath 出力先フォルダ(選択場所)
+    #  引数1: str StartPos      キャプチャ範囲：開始位置
+    #  引数1: str EndPos        キャプチャ範囲：終了位置
+    #  引数1: str captureFreq   キャプチャ頻度
     ################################################################################
-    def movieClipping(self, OutputTime):
-        # 変数の初期化
-        count = 1           # フレーム用カウンタ
-        pict_num = 0        # 出力画像の枝番
+    def movieCapture(self, outFolderPath, StartPos, EndPos, captureFreq):
 
-        # pythonTempフォルダがなければ作成
-        os.makedirs(f"{keiUtil.managementArea}/picture/{self.movie_FileName}", exist_ok=True)
+        count = StartPos    # フレーム用カウンタ
+        if count == 0:
+            count = 1       # 最初からなら暫定で 1 からに変更 (0フレーム目を取得する処理をそのうち作る)
 
-        keiUtil.logAdd("クリッピング開始, 1")
-        
+        # 出力先フォルダがなければ作成
+        pictDir = f"{outFolderPath}/{self.movie_FileName}"  # 「引数の出力先フォルダ\動画のファイル名」
+        os.makedirs(pictDir, exist_ok=True)
+
+        # 開始位置の1つ前にキャプチャ位置を移動
+        self.capture.set(cv2.CAP_PROP_POS_FRAMES, StartPos - 1)
+
+        keiUtil.logAdd("キャプチャ開始", 1)
+
+
         # 動画のフレームを順番に見ていく
         while True:
             # フレームの情報を読み込む
             ret, frame = self.capture.read()
             
-            if not ret:
-                # フレームを読み込めなかったらループを抜ける
-                keiUtil.logAdd("クリッピング終了, 1")
+            if not ret or count == EndPos + 1:
+                # 終了位置になるか、フレームを読み込めなければループを抜ける 
+                keiUtil.logAdd("キャプチャ終了", 1)
                 break
 
             # ファイルの出力
-            if int(count % self.fps) == 0:
-                # 1秒ごと(暫定、秒間フレーム数毎)
+            if int(count % captureFreq) == 0:
+                # キャプチャ頻度ごと(1秒 or コンボボックス設定値)
 
-                # ファイル名の枝番を更新
-                pict_num = int(count // self.fps)
-
-                # 「動画ファイル名_XXXXXX(枝番)_yyyymmdd_HHMMSS.png」 でファイル出力
-                pictPath = f"./picture/sample/{self.movie_FileName}/{self.movie_FileName}_{pict_num:06}_{keiUtil.getTime()}.png"
+                # 「動画ファイル名_XXXXXX(フレーム数)_yyyymmdd_HHMMSS.png」 でファイル出力
+                pictPath = f"{pictDir}/{self.movie_FileName}_{count:06}_{keiUtil.getTime()}.png"
                 cv2.imwrite(pictPath, frame)
                 keiUtil.logAdd(f"画像出力:{pictPath}")
-            
-            count += 1  # フレームのカウントアップ
+
+            count += 1  # カウントアップ
 
     ###############################################################################
     # キャプチャ出力
@@ -800,5 +858,5 @@ class clipMovie(tk.Frame):
 ###############################################################################
 if __name__ == "__main__":
     main_window = tk.Tk()
-    clipMovie(main_window)    # Viewクラス生成
+    captureMovie(main_window)    # Viewクラス生成
     main_window.mainloop()  # 　フレームループ処理
