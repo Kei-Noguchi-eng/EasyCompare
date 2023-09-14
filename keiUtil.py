@@ -1,10 +1,13 @@
 # -*- coding: utf8 -*-
 import os
 import datetime
+import configparser
 
 toolName:str = ""   # ツール名称用変数
 execDay:str = ""    # 起動した日
 managementArea:str = r"c:\pythonTemp"
+inifile = configparser.SafeConfigParser()
+inifile.read("./settings.ini", encoding="utf-8")
 
 ###############################################################################
 # ログファイルにテキスト出力する
@@ -65,3 +68,23 @@ def secToTime(nSec):
     list_time = [hh, mm, ss]
 #    print(f"{hh}:{mm}:{ss}")   # デバッグ用
     return list_time
+
+###############################################################################
+# ini ファイルの項目と一致するか確認
+###############################################################################
+def checkIniFile(section, key, value):
+    if value != inifile[section][key]:
+        # 設定と iniファイルの値が異なる場合
+
+        if inifile.has_section(section) == False:
+            # セクションが存在しなければ作成
+            inifile[section] = {}
+
+        # iniファイルに書き込み
+        inifile.set(section, key, value)
+        with open("./settings.ini", 'w') as file:
+            inifile.write(file)
+
+        return True
+    else:
+        return False

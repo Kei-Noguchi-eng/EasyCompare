@@ -4,8 +4,8 @@
 #   動画からフレーム単位で画像を抽出する
 ################################################################################
 import os
-import sys
-import time
+#import sys
+#import time
 import cv2
 import threading    # スレッド処理
 import keiUtil
@@ -16,10 +16,12 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter.filedialog import askopenfile
-from PIL import Image, ImageOps, ImageTk
+from PIL import Image, ImageTk
+#from PIL import Image, ImageOps, ImageTk
 
+# iniファイル読込
 inifile = configparser.SafeConfigParser()
-inifile.read('settings.ini')
+inifile.read("./settings.ini", encoding="utf-8")
 
 
 # 単体起動の間ここに追加
@@ -62,9 +64,10 @@ class captureMovie(tk.Frame):
  	# 変数初期化
     ###############################################################################
     def init_var(self):
+        self.inMovieFolder = inifile["MOVIE EDIT"]["inputMoviePath"]        # 読み込みファイルのデフォルトフォルダー
         self.inMoviePath:str             # 読み込みファイルのパス
-        self.outFolderPath:str              # 出力先フォルダのパス
         self.movie_FileName:str = ""     # 動画のファイル名
+        self.outFolderPath = inifile["MOVIE EDIT"]["outputPicturePath"]     # 出力先フォルダのパス
         self.totalCount:int = 0          # 動画の総フレーム数
         self.fps:int = 0                 # 動画のfps数
         self.outputStartPos:int = 0      # 出力範囲の開始位置
@@ -292,7 +295,7 @@ class captureMovie(tk.Frame):
     ###############################################################################
     def on_click_moviePath(self):
         # 入力動画のパスを取得してエディットコントロールを更新
-        ret = self.get_moviePath()       #
+        ret = self.get_moviePath()
         if ret == False:
             return
 
@@ -304,7 +307,6 @@ class captureMovie(tk.Frame):
 
         # フレームのデータを読み込む
         self.moveCountUp()
-#        self.updateCanvasImage()
 
         # スレッドの処理を開始する
         self.thread_set = True
@@ -409,12 +411,10 @@ class captureMovie(tk.Frame):
     ###############################################################################
     def resetPlayStatus(self):
         self.capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
-#        self.updateCanvasImage()
         self.moveCountUp()
 
         # コントロールの初期化
         self.scale_var.set(0)       # スライダーを開始位置に戻す
-#        self.updateMovieCount()     # 動画の再生位置の表示を更新する
         self.enableWidget()         # コントロールの有効化
 
     ###############################################################################
@@ -612,7 +612,7 @@ class captureMovie(tk.Frame):
         if w > h:
             resizedImg = img.resize((int(w * (self.canvasWidth / w)), int(h * (self.canvasWidth / w))))
         else:
-            rresizedImg = img.resize((int(w * (self.canvasHeight / h)), int(h * (self.canvasHeight / h))))
+            resizedImg = img.resize((int(w * (self.canvasHeight / h)), int(h * (self.canvasHeight / h))))
 
         self.pil_img = ImageTk.PhotoImage(resizedImg)
         canvas.delete("can_pic")
@@ -638,9 +638,17 @@ class captureMovie(tk.Frame):
     ###############################################################################
     def get_moviePath(self):
         # ファイルダイアログを開く
-        self.inMoviePath = tk.filedialog.askopenfilename(title="動画ファイルを選択してください,", filetypes=self.movieFile_filter)
+        self.inMoviePath = tk.filedialog.askopenfilename(title="動画ファイルを選択してください", filetypes=self.movieFile_filter, initialdir=self.inMovieFolder)
+
         if self.inMoviePath == "":
+            # ファイルを選択せずに閉じていたら return
             return False
+
+        # 入力動画フォルダの更新
+        selectFolder = self.inMoviePath[:self.inMoviePath.rfind('/')]
+        ret = keiUtil.checkIniFile("MOVIE EDIT", "inputMoviePath", selectFolder)
+        if ret == True:
+            self.inMovieFolder = selectFolder
 
         keiUtil.logAdd(f"入力動画パス:{self.inMoviePath}")
 
@@ -649,9 +657,14 @@ class captureMovie(tk.Frame):
     ###############################################################################
     def get_folderPath(self):
         # ファイルダイアログを開く
-        self.outFolderPath = tk.filedialog.askdirectory(title="出力先フォルダを選択してください,")
-        if self.inMoviePath == "":
+        self.outFolderPath = tk.filedialog.askdirectory(title="出力先フォルダを選択してください", initialdir=self.outFolderPath)
+
+        if self.outFolderPath == "":
+            # フォルダを選択せずに閉じていたら return
             return False
+
+        # 出力動画フォルダの更新
+        keiUtil.checkIniFile("MOVIE EDIT", "outputpicturepath", self.outFolderPath)
 
         keiUtil.logAdd(f"出力画像パス:{self.outFolderPath}")
     
