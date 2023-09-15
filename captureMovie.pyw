@@ -80,6 +80,7 @@ class captureMovie(tk.Frame):
         self.thread_set = False          # スレッドを開始済みかのフラグ
         self.start_movie = False         # 再生中フラグ True の間フレームを更新する
         self.video_frame = None
+        self.tempcapNum = 0              # 簡易キャプチャ用連番
 
     ###############################################################################
  	#  ウィンドウの×ボタンでの終了
@@ -266,7 +267,7 @@ class captureMovie(tk.Frame):
         self.BTN_CAP.config(state=tk.DISABLED)
 
         self.cap_var = tk.BooleanVar()
-        self.CHK_CAP = tk.Checkbutton(self.FRAME_COMMAND_OPR, variable=self.cap_var, text="出力先指定を省略する", anchor = tk.W)
+        self.CHK_CAP = tk.Checkbutton(self.FRAME_COMMAND_OPR, variable=self.cap_var, text="出力先指定を省略する", anchor = tk.W) # 簡易キャプチャのフラグ
         self.CHK_CAP.place(relx=0.02, rely=0.86, relwidth=0.45, relheight=0.05)
         self.CHK_CAP.config(state=tk.DISABLED)
         self.cap_var.set(False)
@@ -437,28 +438,77 @@ class captureMovie(tk.Frame):
     # キャプチャボタンを押したときの動作
     ###############################################################################
     def onBtnCapture(self):
-        # 出力先を選択するダイアログを表示する
-        tempFilename = filedialog.asksaveasfilename(
-            title="名前を付けて保存", initialdir="./", filetypes=[("PNG Image Files", ".png")], initialfile="capture.png"
-        )
-        if tempFilename == "":
-            return
 
+        if self.cap_var.get() == True:
+            # 簡易キャプチャが有効になっている
+            tempFilePath = f"{keiUtil.managementArea}/EDIT_POOL/picture_out/temp/tempCapture_{self.movie_FileName}_{keiUtil.getTime()}_{self.tempcapNum:06}.png"
+
+            # # ファイル名のファイルの枝番を見る
+            # while True:
+            #     searchFilepath = f"{keiUtil.managementArea}/EDIT_POOL/picture_out/temp/tempCapture_{self.movie_FileName}_*_{self.tempcapNum:06}.png"
+            #     print(os.path.exists(searchFilepath)) # debug
+            #     if os.path.exists(searchFilepath):
+            #         self.tempcapNum += 1
+            #     else:
+            #         tempFilePath = f"{keiUtil.managementArea}/EDIT_POOL/picture_out/temp/tempCapture_{self.movie_FileName}_{keiUtil.getTime()}_{self.tempcapNum:06}.png"
+            #         break
+            
+            # キャプチャを取得
+            if False == self.getCapture(tempFilePath):
+                return
+            
+            self.tempcapNum += 1    # カウントアップする
+           
+
+        else:
+            # 出力先を選択するダイアログを表示する
+            tempFilePath = filedialog.asksaveasfilename(
+                title="名前を付けて保存", filetypes=[("PNG Image Files", ".png")],
+                initialdir=f"{keiUtil.managementArea}/EDIT_POOL/picture_out/temp", initialfile="capture.png"
+            )
+            if tempFilePath == "":
+                return
+
+            # キャプチャを取得
+            if False == self.getCapture(tempFilePath):
+                return
+
+    ###############################################################################
+    # キャプチャ取得本体
+    ###############################################################################
+    def getCapture(self, filePath):
         ret, frame = self.capture.read()
         if ret == False:
             # フレーム画像の取得に失敗
             frame_Num = int(self.capture.get(cv2.CAP_PROP_POS_FRAMES))
-            text = "画像の取得に失敗しました。"
-            tk.messagebox.showerror("画像取得エラー", f"{text}\n\n{frame_Num}フレーム目:{self.inMoviePath}")
-            keiUtil.logAdd(f"{text}\n -> {frame_Num}フレーム目:{self.inMoviePath}", 2)
-            return         
 
-        ret = self.movieOutput(frame, tempFilename)
+            if self.cap_var.get() == False:
+                text = "画像の取得に失敗しました。"
+                tk.messagebox.showerror("画像取得エラー", f"{text}\n\n{frame_Num}フレーム目:{self.inMoviePath}")
+            keiUtil.logAdd(f"{text}\n -> {frame_Num}フレーム目:{self.inMoviePath}", 2)
+            return False        
+
+        ret = self.movieOutput(frame, filePath)
         if ret == False:
             # 画像の出力に失敗
-            text = "画像の出力に失敗しました。"
-            tk.messagebox.showerror("画像出力エラー", f"{text}\n\n{tempFilename}")
-            keiUtil.logAdd(f"{text}\n -> {tempFilename}", 2)
+            if self.cap_var.get() == False:
+                text = "画像の出力に失敗しました。"
+                tk.messagebox.showerror("画像出力エラー", f"{text}\n\n{filePath}")
+            keiUtil.logAdd(f"{text}\n -> {filePath}", 2)
+
+    ###############################################################################
+    # キャプチャ出力
+    #  引数1: 画像イメージ
+    #  引数1: 出力先パス
+    ################################################################################
+    def movieOutput(self, frame, pictPath):
+
+        ret = cv2.imwrite(pictPath, frame)
+        if ret == False:
+            keiUtil.logAdd(f"画像出力失敗:{pictPath}", 2)
+            return False
+
+        keiUtil.logAdd(f"画像出力:{pictPath}")
 
     ###############################################################################
     # 出力ボタンを押したときの動作
@@ -535,6 +585,7 @@ class captureMovie(tk.Frame):
             self.CMB_FREQ.config(state=tk.DISABLED)
             self.BTN_CAP.config(state=tk.DISABLED)
             self.SCR_SCALE.config(state=tk.DISABLED)
+            self.CHK_CAP.config(state=tk.DISABLED)
             return
 
         if self.start_movie == False:
@@ -557,7 +608,9 @@ class captureMovie(tk.Frame):
             self.BTN_CLOSE.config(state=tk.DISABLED)
             self.BTN_INPUTPATH.config(state=tk.DISABLED)
             self.BTN_OUTPUTPATH.config(state=tk.DISABLED)
-            self.BTN_CAP.config(state=tk.DISABLED)
+            if self.cap_var.get() == False:
+                # 簡易キャプチャ設定時はトーンダウンしない
+                self.BTN_CAP.config(state=tk.DISABLED)
             self.BTN_OUTPUT.config(state=tk.DISABLED)
             self.SCR_SCALE.config(state=tk.DISABLED)          # 再生中のスライダー操作で落ちるバグがあるため封印
 
@@ -686,6 +739,9 @@ class captureMovie(tk.Frame):
         # 動画のパスからファイル名を取得する
         self.movie_FileName = os.path.splitext(os.path.basename(self.inMoviePath))[0]
         
+        # 簡易キャプチャ用連番取得
+        self.updateTempcapNum()
+
         # 映像(動画)の取得
         self.capture = cv2.VideoCapture(self.inMoviePath)
         self.bCatchedMovie = True
@@ -720,6 +776,15 @@ class captureMovie(tk.Frame):
 
         # コントロールを有効化する
         self.enableWidget()
+
+        self.CHK_CAP.config(state=tk.NORMAL) # 動作確認　もっといい場所に移動
+
+    ###############################################################################
+    # 簡易キャプチャ用連番取得
+    ################################################################################
+    def updateTempcapNum(self):
+        serchPath = f"{keiUtil.managementArea}/EDIT_POOL/picture_out/temp/tempCapture_{self.movie_FileName}_*_*.png"
+        self.tempcapNum = keiUtil.getLastFileNumber(serchPath)
 
     ###############################################################################
     # コンボボックスの選択肢を fpsのフレーム数を上限に 更新する
@@ -850,20 +915,6 @@ class captureMovie(tk.Frame):
                 keiUtil.logAdd(f"画像出力:{pictPath}")
 
             count += 1  # カウントアップ
-
-    ###############################################################################
-    # キャプチャ出力
-    #  引数1: 画像イメージ
-    #  引数1: 出力先パス
-    ################################################################################
-    def movieOutput(self, frame, pictPath):
-
-        ret = cv2.imwrite(pictPath, frame)
-        if ret == False:
-            keiUtil.logAdd(f"画像出力失敗:{pictPath}", 2)
-            return False
-
-        keiUtil.logAdd(f"画像出力:{pictPath}")
 
 
 ###############################################################################

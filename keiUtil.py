@@ -2,10 +2,11 @@
 import os
 import datetime
 import configparser
+import glob
 
 toolName:str = ""   # ツール名称用変数
 execDay:str = ""    # 起動した日
-managementArea:str = r"c:\pythonTemp"
+managementArea:str = "c:/pythonTemp"
 inifile = configparser.SafeConfigParser()
 inifile.read("./settings.ini", encoding="utf-8")
 
@@ -61,6 +62,7 @@ def getTime():
 
 ###############################################################################
 # 秒数　→　時、分、秒　に変換
+#  引数1: int nSec      変換元の秒数
 ###############################################################################
 def secToTime(nSec):
     hh, temp = divmod(nSec, 3600)
@@ -71,6 +73,9 @@ def secToTime(nSec):
 
 ###############################################################################
 # ini ファイルの項目と一致するか確認
+#  引数1: str section   対象のiniファイルのセクション名
+#  引数2: str key       対象のiniファイルのkey値
+#  引数3: str value     新しい設定値
 ###############################################################################
 def checkIniFile(section, key, value):
     if value != inifile[section][key]:
@@ -88,3 +93,23 @@ def checkIniFile(section, key, value):
         return True
     else:
         return False
+
+###############################################################################
+# 探索するフォルダ内の枝番の末尾を取得する (???_XXX.extフォーマット制限)
+#  引数1: str serchPath   探索するパス
+###############################################################################
+def getLastFileNumber(serchPath):
+    maxNum = -1
+ 
+    files = glob.glob(serchPath)
+
+    # パスと一致するファイルを探索する
+    for file in files:
+        # .ext 前の XXX 部分の切り取り
+        strNum = file[file.rfind('_') + 1:file.rfind('.')]
+        if strNum.isdecimal():
+            tempNum = int(strNum)
+            if tempNum > maxNum:
+                maxNum = tempNum
+    
+    return maxNum + 1   # インクリメントして return
