@@ -267,16 +267,18 @@ class MovieCapture:
     #   引数1: 出力先ファイルパス
     ###############################################################################
     def getCapture(self, filePath):
-        ret, self.myVideo.video_frame = self.myVideo.capture.read()
-        if ret == False:
-            # フレーム画像の取得に失敗
-            frame_Num = int(self.myVideo.capture.get(cv2.CAP_PROP_POS_FRAMES))
+        if self.myVideo.video_frame is None:
+            # フレームに画像がない時、画像を取得
+            ret, self.myVideo.video_frame = self.myVideo.capture.read()
+            if ret == False:
+                # フレーム画像の取得に失敗
+                frame_Num = int(self.myVideo.capture.get(cv2.CAP_PROP_POS_FRAMES))
 
-            if self.cap_var.get() == False:
-                text = "画像の取得に失敗しました。"
-                tk.messagebox.showerror("画像取得エラー", f"{text}\n\n{frame_Num}フレーム目:{self.myVideo.path}")
-            keiUtil.logAdd(f"{text}\n -> {frame_Num}フレーム目:{self.myVideo.path}", 2)
-            return False        
+                if self.cap_var.get() == False:
+                    text = "画像の取得に失敗しました。"
+                    tk.messagebox.showerror("画像取得エラー", f"{text}\n\n{frame_Num}フレーム目:{self.myVideo.path}")
+                keiUtil.logAdd(f"{text}\n -> {frame_Num}フレーム目:{self.myVideo.path}", 2)
+                return False        
 
         ret = self.movieOutput(self.myVideo.video_frame, filePath)
         if ret == False:
@@ -343,10 +345,5 @@ class MovieCapture:
                 keiUtil.logAdd(f"画像出力:{pictPath}")
 
             count += 1  # カウントアップ
-
-
-        # 簡易キャプチャ用連番取得
-        self.parent.updateTempcapNum()
-
 
 

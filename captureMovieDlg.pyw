@@ -355,8 +355,7 @@ class CaptureMovieDlg(tk.Frame):
             self.outputFolderPath = inifile["MOVIE EDIT"]["outputPicturePath"]     # 出力先フォルダのパス
             self.playDrawFrameFreq:int = 0   # 再生時の描画頻度設定 (キャンバスの更新を何Fごとに行うか)
             self.outputFrameFreq:int = 0     # 出力時の出力頻度の設定 (何フレーム毎に出力するか)
-            self.outputStartPos:int = 0      # 出力範囲の開始位置
-            self.outputEndPos:int = 0        # 出力範囲の終了位置
+            self.tempcapNum = 0                # 簡易キャプチャ用連番
 
     ###############################################################################
  	# コンストラクタ
@@ -378,6 +377,7 @@ class CaptureMovieDlg(tk.Frame):
 
         # 設定構造体の生成
         self.s_st = self.ControlSetting()
+        self.updateTempcapNum()     # 簡易キャプチャ用連番更新
 
         # ウィンドウの x ボタンが押された時の設定
         self.master.protocol("WM_DELETE_WINDOW", self.delete_window)
@@ -506,26 +506,26 @@ class CaptureMovieDlg(tk.Frame):
     #  動画出力の開始位置を指定する
     ###############################################################################
     def OnBtnSetCapturePos_Start(self):
-        self.s_st.outputStartPos = self.scale_var.get()
-        self.view.posStart_var.set(f"開始位置: {self.s_st.outputStartPos}")
-        keiUtil.logAdd(f"動画出力の開始位置を設定: {self.s_st.outputStartPos}")
+        self.myVideo.outputStartPos = self.scale_var.get()
+        self.view.posStart_var.set(f"開始位置: {self.myVideo.outputStartPos}")
+        keiUtil.logAdd(f"動画出力の開始位置を設定: {self.myVideo.outputStartPos}")
         self.view.BTN_POSRST.config(state=tk.NORMAL)
 
     ###############################################################################
     #  動画出力の終了位置を指定する 
     ###############################################################################
     def OnBtnSetCapturePos_End(self):
-        self.s_st.outputEndPos = self.scale_var.get()
-        self.view.posEnd_var.set(f"終了位置: {self.s_st.outputEndPos}")
-        keiUtil.logAdd(f"動画出力の終了位置を設定: {self.s_st.outputEndPos}")
+        self.myVideo.outputEndPos = self.scale_var.get()
+        self.view.posEnd_var.set(f"終了位置: {self.myVideo.outputEndPos}")
+        keiUtil.logAdd(f"動画出力の終了位置を設定: {self.myVideo.outputEndPos}")
         self.view.BTN_POSRST.config(state=tk.NORMAL)
 
     ###############################################################################
     #  動画出力範囲をリセットする
     ###############################################################################
     def OnBtnResetCaptureRange(self):
-        self.s_st.outputStartPos = 0
-        self.s_st.outputEndPos = self.myVideo.totalCount
+        self.myVideo.outputStartPos = 0
+        self.myVideo.outputEndPos = self.myVideo.totalCount
         self.view.posStart_var.set("開始位置: 0")
         self.view.posEnd_var.set(f"終了位置: {self.myVideo.totalCount}")
         keiUtil.logAdd(f"動画出力範囲を初期化　0:{self.myVideo.totalCount}")
@@ -577,8 +577,8 @@ class CaptureMovieDlg(tk.Frame):
             if False == self.movieCapture.getCapture(tempFilePath):
                 return
             
-            self.tempcapNum += 1    # カウントアップする
-           
+            self.s_st.tempcapNum += 1    # カウントアップする
+
 
         else:
             # 出力先を選択するダイアログを表示する
@@ -597,7 +597,7 @@ class CaptureMovieDlg(tk.Frame):
     # 出力ボタンを押したときの動作
     ###############################################################################
     def OnBtnOutputCapture(self):
-        
+
         # パスが空なら return
         if self.view.inPathStr_var == "":
             print("ng")
@@ -619,7 +619,7 @@ class CaptureMovieDlg(tk.Frame):
         messageText = f"出力ファイル：{self.myVideo.path}\n"\
                         f"出力パス：{self.s_st.outputFolderPath}\n"\
                         f"キャプチャ頻度：{captureFreq}F\n"\
-                        f"キャプチャ範囲： {self.s_st.outputStartPos} ~ {self.s_st.outputEndPos}\n\n"\
+                        f"キャプチャ範囲： {self.myVideo.outputStartPos} ~ {self.myVideo.outputEndPos}\n\n"\
                         "上記の設定でキャプチャを出力します。"
         ret = tk.messagebox.askyesno("画像出力", f"{messageText}")
 
@@ -629,12 +629,12 @@ class CaptureMovieDlg(tk.Frame):
             return
         
         # OKなら出力ディレクトリ作成
-        keiUtil.logAdd(f"キャプチャ範囲：{self.s_st.outputStartPos} ~ {self.s_st.outputEndPos}  "\
+        keiUtil.logAdd(f"キャプチャ範囲：{self.myVideo.outputStartPos} ~ {self.myVideo.outputEndPos}  "\
                        f"キャプチャ頻度：{captureFreq}", 1)
         keiUtil.logAdd(f"キャプチャ出力：{self.myVideo.path} -> {self.s_st.outputFolderPath}", 1)
 
         # キャプチャ出力
-        self.movieCapture(self.s_st.outputFolderPath, self.s_st.outputStartPos, self.s_st.outputEndPos, captureFreq)
+        self.movieCapture.movieCapture(self.s_st.outputFolderPath, self.myVideo.outputStartPos, self.myVideo.outputEndPos, captureFreq)
 
     ###############################################################################
     # 入力動画パスを取得する
