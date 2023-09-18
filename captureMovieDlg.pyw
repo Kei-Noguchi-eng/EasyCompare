@@ -14,8 +14,6 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter.filedialog import askopenfile
-from PIL import Image, ImageTk
-#from PIL import Image, ImageOps, ImageTk
 
 from captureMovie import PlayMovie
 from captureMovie import MovieCapture
@@ -85,9 +83,6 @@ class View():
         self.freqList_list = ("1F")	# コンボボックス要素用配列
         self.CMB_FREQ.set("1F")		# コンボボックス設定値
     
-        self.canvasWidth = self.CANVAS_VIEW.winfo_width()    # キャンバスサイズの取得
-        self.canvasHeight = self.CANVAS_VIEW.winfo_height()  # キャンバスサイズの取得
-
    ###############################################################################
     # Window の View
     ###############################################################################
@@ -127,6 +122,12 @@ class View():
                         variable = self.scale_var, command = self.parent.OnMoveSlider
         )                        
         self.SCR_SCALE.place(relx=0.01, rely=0.86, relwidth=0.98, relheight=0.07)
+
+        self.playSync_var = tk.BooleanVar()  # チェックボックスの状態設定用変数
+        self.CHK_PLAY_SYNC = tk.Checkbutton(self.FRAME_CANVAS, variable=self.playSync_var, text="再生速度の同期をとる", anchor = tk.W, command= self.parent.OnBtnSync) # 再生速度同期のチェックボックス
+        self.CHK_PLAY_SYNC.place(relx=0.01, rely=0.94, relwidth=0.28, relheight=0.05)
+        self.CHK_PLAY_SYNC.config(state=tk.DISABLED)
+        self.playSync_var.set(False)
 
         self.LBL_FLAMEALL = tk.Label(self.FRAME_CANVAS, textvariable=self.frameAll_var, font=(0,11), anchor=tk.NW)  # 総フレームラベル
         self.LBL_FLAMEALL.place(relx=0.30, rely=0.94, relwidth=0.20, relheight=0.05)
@@ -244,7 +245,6 @@ class View():
     # ボタンの状態制御
     ###############################################################################
     def enableWidget(self):
-        self.CHK_CAP.config(state=tk.NORMAL) # 動作確認　もっといい場所に移動
         if self.myVideo.setMovie == False:
             # 画像を読み込めていない時はボタン無効
             self.BTN_PLAY.config(state=tk.DISABLED)
@@ -255,6 +255,7 @@ class View():
             self.CMB_FREQ.config(state=tk.DISABLED)
             self.BTN_CAP.config(state=tk.DISABLED)
             self.SCR_SCALE.config(state=tk.DISABLED)
+            self.CHK_PLAY_SYNC.config(state=tk.DISABLED)
             self.CHK_CAP.config(state=tk.DISABLED)
             return
 
@@ -271,6 +272,8 @@ class View():
             self.BTN_CAP.config(state=tk.NORMAL)
             self.BTN_OUTPUT.config(state=tk.NORMAL)
             self.SCR_SCALE.config(state=tk.NORMAL)          # 再生中のスライダー操作で落ちるバグがあるため封印
+            self.CHK_CAP.config(state=tk.NORMAL)
+            self.CHK_PLAY_SYNC.config(state=tk.NORMAL)
         else:
             self.BTN_PLAY.config(state=tk.DISABLED)
             self.BTN_STOP.config(state=tk.NORMAL)    # 再生中に押せる
@@ -283,6 +286,8 @@ class View():
                 self.BTN_CAP.config(state=tk.DISABLED)
             self.BTN_OUTPUT.config(state=tk.DISABLED)
             self.SCR_SCALE.config(state=tk.DISABLED)          # 再生中のスライダー操作で落ちるバグがあるため封印
+            self.CHK_CAP.config(state=tk.DISABLED)
+            self.CHK_PLAY_SYNC.config(state=tk.DISABLED)
 
     ###############################################################################
     # コントロールの動画の情報を更新する
@@ -301,9 +306,6 @@ class View():
         # 動画タイトルの更新
         self.movieStr_var.set(self.myVideo.fileName)
 
-        # 動画の時間表示の更新
-    #    self.updateMovieCount()
-
     ###############################################################################
     # コンボボックスの選択肢を fpsのフレーム数を上限に 更新する
     #  引数1: int fps 入力動画の秒間フレーム数
@@ -312,7 +314,14 @@ class View():
 
         listItems = []                          # 変数格納用の箱を作る
 
-#        if self.myVideo.totalcount 10分5分1分30秒
+        if self.myVideo.totalCount / self.myVideo.fps > 3600:
+            listItems.append(f"{fps * 600}F(10分)")
+        if self.myVideo.totalCount / self.myVideo.fps > 1800:
+            listItems.append(f"{fps * 300}F(5分)")
+        if self.myVideo.totalCount / self.myVideo.fps > 600:
+            listItems.append(f"{fps * 60}F(1分)")
+        if self.myVideo.totalCount / self.myVideo.fps > 300:
+            listItems.append(f"{fps * 30}F(30秒)")
         listItems.append(f"{fps * 10}F(10秒)")
         listItems.append(f"{fps * 5}F(5秒)")
         listItems.append(f"{fps * 3}F(3秒)")
@@ -355,7 +364,9 @@ class CaptureMovieDlg(tk.Frame):
             self.outputFolderPath = inifile["MOVIE EDIT"]["outputPicturePath"]     # 出力先フォルダのパス
             self.playDrawFrameFreq:int = 0   # 再生時の描画頻度設定 (キャンバスの更新を何Fごとに行うか)
             self.outputFrameFreq:int = 0     # 出力時の出力頻度の設定 (何フレーム毎に出力するか)
-            self.tempcapNum = 0                # 簡易キャプチャ用連番
+            self.tempcapNum = 0              # 簡易キャプチャ用連番
+            self.bSliderMoving = False       # スライダー移動中フラグ
+            self.bSynchronizationPlayingTime = False    # 動画再生の時間を同期する
 
     ###############################################################################
  	# コンストラクタ
@@ -377,7 +388,8 @@ class CaptureMovieDlg(tk.Frame):
 
         # 設定構造体の生成
         self.s_st = self.ControlSetting()
-        self.updateTempcapNum()     # 簡易キャプチャ用連番更新
+        self.view.outPathStrvar.set(self.s_st.outputFolderPath) # デフォルト出力パスの指定
+        self.updateTempcapNum()                                 # 簡易キャプチャ用連番更新
 
         # ウィンドウの x ボタンが押された時の設定
         self.master.protocol("WM_DELETE_WINDOW", self.delete_window)
@@ -438,19 +450,21 @@ class CaptureMovieDlg(tk.Frame):
             return
 
         # 動画の読込
-        self.myVideo.readFile(self.myVideo.path)    # 引数無しで問題ないが使いまわし用
-        
-        # 動画情報の解析
-        ret = self.myVideo.analyzeMovie()
+        ret = self.myVideo.readFile(self.myVideo.path)    # 引数無しで問題ないが使いまわし用
         if ret == False:
             return
 
         # コントロールを更新、有効化する
         self.view.updateWidgetInfo()
+        self.playMovie.updateMovieCount() # 動画の時間表示の更新
         self.view.enableWidget()
 
+        # キャンパスサイズの更新
+        self.view.canvasWidth = self.view.CANVAS_VIEW.winfo_width()    # キャンバスサイズの取得
+        self.view.canvasHeight = self.view.CANVAS_VIEW.winfo_height()  # キャンバスサイズの取得
+
         # フレームのデータを読み込む
-        self.playMovie.moveCountUp(self.myVideo.video_frame)    # analyzeMovie()で読んだフレーム
+        self.playMovie.moveCountUp()    # analyzeMovie()で読んだフレーム
 
         # スレッドの処理を開始する
         self.createThread()
@@ -476,7 +490,7 @@ class CaptureMovieDlg(tk.Frame):
         if self.myVideo.capture.get(cv2.CAP_PROP_POS_FRAMES) == self.myVideo.totalCount:
             # 現在位置が動画の最後であれば最初に戻って再生開始する
             self.resetPlayStatus()
-            ret, self.myVideo.video_frame = self.myVideo.capture.read() # フレームずれ対策
+            ret, self.myVideo.video_frame = self.myVideo.getFramePicture() # フレームずれ対策
 
         # セット済みのフレームから動画を再生する
         self.s_st.playingMovie = True
@@ -506,7 +520,7 @@ class CaptureMovieDlg(tk.Frame):
     #  動画出力の開始位置を指定する
     ###############################################################################
     def OnBtnSetCapturePos_Start(self):
-        self.myVideo.outputStartPos = self.scale_var.get()
+        self.myVideo.outputStartPos = self.view.scale_var.get()
         self.view.posStart_var.set(f"開始位置: {self.myVideo.outputStartPos}")
         keiUtil.logAdd(f"動画出力の開始位置を設定: {self.myVideo.outputStartPos}")
         self.view.BTN_POSRST.config(state=tk.NORMAL)
@@ -515,7 +529,7 @@ class CaptureMovieDlg(tk.Frame):
     #  動画出力の終了位置を指定する 
     ###############################################################################
     def OnBtnSetCapturePos_End(self):
-        self.myVideo.outputEndPos = self.scale_var.get()
+        self.myVideo.outputEndPos = self.view.scale_var.get()
         self.view.posEnd_var.set(f"終了位置: {self.myVideo.outputEndPos}")
         keiUtil.logAdd(f"動画出力の終了位置を設定: {self.myVideo.outputEndPos}")
         self.view.BTN_POSRST.config(state=tk.NORMAL)
@@ -537,21 +551,34 @@ class CaptureMovieDlg(tk.Frame):
     def OnMoveSlider(self, event=None):
         # スライダー位置の画像を取得
         self.myVideo.capture.set(cv2.CAP_PROP_POS_FRAMES, self.view.scale_var.get())
-        ret, self.video_frame = self.myVideo.capture.read()         # フレーム画像の読み込み
+        ret, self.video_frame = self.myVideo.getFramePicture()        # フレーム画像の読み込み
+
+        self.s_st.bSliderMoving = True  # スライダー移動中
 
         if ret:
-            self.playMovie.moveCountUp(self.video_frame)
-            self.playMovie.updateMovieCount(int(self.view.scale_var.get()/self.myVideo.fps) * self.myVideo.fps)    # 更新フレームずれ対策
+            self.playMovie.moveCountUp()
+
         else:
-            self.s_st.playingMovie = False                        # 再生を終了する
+            self.s_st.playingMovie = False                          # 再生を終了する
             self.myVideo.capture.set(cv2.CAP_PROP_POS_FRAMES, 0)    # 動画の最初に戻す
+
+            ret, self.video_frame = self.myVideo.getFramePicture()  # フレーム画像の読み込み
             self.playMovie.updateCanvasImage()
-            self.playMovie.updateMovieCount()
+
+        self.s_st.bSliderMoving = False  # スライダー移動済
     
+    ###############################################################################
+    # 再生速度の同期 チェックボタンを押したときの動作
+    ###############################################################################
+    def OnBtnSync(self):
+        # チェックボックスの状態をフラグ変数に代入する
+        self.s_st.bSynchronizationPlayingTime = self.view.playSync_var.get()
+
     ###############################################################################
     # 閉じるボタンを押したときの動作
     ###############################################################################
     def OnBtnClose(self):
+        # ウィンドウを破棄する
         self.delete_window()
 
     ###############################################################################
@@ -563,16 +590,6 @@ class CaptureMovieDlg(tk.Frame):
             # 簡易キャプチャが有効になっている
             tempFilePath = f"{keiUtil.managementArea}/EDIT_POOL/picture_out/temp/tempCapture_{self.myVideo.fileName}_{keiUtil.getTime()}_{self.tempcapNum:06}.png"
 
-            # # ファイル名のファイルの枝番を見る
-            # while True:
-            #     searchFilepath = f"{keiUtil.managementArea}/EDIT_POOL/picture_out/temp/tempCapture_{self.myVideo.fileName}_*_{self.tempcapNum:06}.png"
-            #     print(os.path.exists(searchFilepath)) # debug
-            #     if os.path.exists(searchFilepath):
-            #         self.tempcapNum += 1
-            #     else:
-            #         tempFilePath = f"{keiUtil.managementArea}/EDIT_POOL/picture_out/temp/tempCapture_{self.myVideo.fileName}_{keiUtil.getTime()}_{self.tempcapNum:06}.png"
-            #         break
-            
             # キャプチャを取得
             if False == self.movieCapture.getCapture(tempFilePath):
                 return
@@ -649,10 +666,10 @@ class CaptureMovieDlg(tk.Frame):
 
         if self.myVideo.setMovie == True:
             # 動画読み込み済みの場合古い動画のスレッドを終了する コントロール系もここで解放
-            self.releaseThread()         # 既に読み込み済みの動画があれば開放する
-            self.view.CANVAS_VIEW.delete("can_pic")  # 本体側に何か書く
-            self.myVideo.video_frame = None
             self.myVideo.setMovie = False
+            self.releaseThread()                    # 既に読み込み済みの動画があれば開放する
+            self.view.CANVAS_VIEW.delete("can_pic") # 本体側に何か書く
+            self.myVideo.crearVar()                 # 動画管理用変数初期化
 
         # 入力動画のパスを更新
         self.myVideo.path= tempMoviePath
@@ -698,12 +715,9 @@ class CaptureMovieDlg(tk.Frame):
     def resetPlayStatus(self):
         self.myVideo.capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
-        ret, self.myVideo.video_frame = self.myVideo.capture.read() # フレーム画像の読み込み
-        if ret == False:
-            # ng  ここ要対策
-            return
+        ret, self.myVideo.video_frame = self.myVideo.getFramePicture() # フレーム画像の読み込み
 
-        self.playMovie.moveCountUp(self.myVideo.video_frame)
+        self.playMovie.moveCountUp()
 
         # コントロールの初期化
         self.view.scale_var.set(0)       # スライダーを開始位置に戻す

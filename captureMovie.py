@@ -69,6 +69,13 @@ class ManagementMovie:
         # 映像(動画)の取得
         self.capture = cv2.VideoCapture(self.path)
 
+        # 動画の情報の解析
+        ret = self.analyzeMovie()
+        if ret == False:
+            self.capture = None
+            keiUtil.logAdd(f"動画の読込に失敗 -> {self.path}", 3)
+            return
+
         self.fileName = os.path.splitext(os.path.basename(self.path))[0]  # 動画のファイル名
         tempfps = self.capture.get(cv2.CAP_PROP_FPS)                      # 動画の秒間フレーム数の取得
         self.fps= int(int((tempfps+0.5)*10)/10)                           # fpsを小数点以下で四捨五入           
@@ -80,7 +87,36 @@ class ManagementMovie:
         keiUtil.logAdd(f"動画の読込 -> {self.path}", 1)
         keiUtil.logAdd(f"「{self.fileName}」, 秒間フレーム数:{self.fps} ({self.capture.get(cv2.CAP_PROP_FPS)})")
         keiUtil.logAdd(f"総フレーム数:{self.totalCount} (再生時間：{self.totalMovieCount})")
+
+        return True
  
+    ###############################################################################
+    # 動画の情報の解析
+    #  引数1: str inMoviePath 入力動画のパス
+    ################################################################################
+    def analyzeMovie(self):
+        # 動画のフォーマットチェック
+        totalnum = self.capture.get(cv2.CAP_PROP_FRAME_COUNT)
+        if totalnum == 0:
+            self.importError()
+            return False
+
+        ret, self.video_frame = self.getFramePicture() # フレーム画像の読み込み
+        if self.video_frame is None or ret == False:
+            self.importError()
+            return False
+
+        return True
+
+    ###############################################################################
+    # 読み込んだ動画が未対応
+    ###############################################################################
+    def importError(self):
+        # 読み込んだ動画が未対応のファイル形式だった
+        errorText = f"動画が対応していないか壊れています。/n"
+        tk.messagebox.showwarning(title="ImportError", message=f"{errorText}/n{self.path}")
+        keiUtil.logAdd(f"{errorText} -> {self.path}") 
+
     ###############################################################################
     # 動画の総再生時間を取得する
     ################################################################################
@@ -98,31 +134,35 @@ class ManagementMovie:
             self.setMovie = False
 
     ###############################################################################
-    # 動画の情報の解析
-    #  引数1: str inMoviePath 入力動画のパス
+    # フレームに画像の取得
     ################################################################################
-    def analyzeMovie(self):
-        # 動画のフォーマットチェック
-        totalnum = self.capture.get(cv2.CAP_PROP_FRAME_COUNT)
-        if totalnum == 0:
-            self.importError()
-            return False
+    def getFramePicture(self):
+        # フレームに画像の取得
+        ret, self.video_frame = self.capture.read()
+        if ret == False:
+            # フレーム画像の取得に失敗
+            frame_Num = int(self.capture.get(cv2.CAP_PROP_POS_FRAMES))
 
-        ret, self.video_frame = self.capture.read() # フレーム画像の読み込み
-        if self.video_frame is None or ret == False:
-            self.importError()
-            return False
+            if frame_Num != self.totalCount:
+                text = "画像の取得に失敗しました。"
+#               tk.messagebox.showerror("画像取得エラー", f"{text}\n\n{frame_Num}フレーム目:{self.myVideo.path}") # ダイアログから呼ばれた時はメッセージボックスを出す (そのうちやる)
+                keiUtil.logAdd(f"{text}\n -> {frame_Num}フレーム目:{self.path}", 3)
+                self.video_frame = None
 
+        return ret, self.video_frame
+
+    ###############################################################################
+    # 動画の総再生時間を取得する
+    ################################################################################
+    def checkAndReadVideoFrame(self):
+        if self.video_frame is None:
+            # フレームに画像がない時、画像を取得
+            ret = self.getFramePicture()
+            if ret == False:
+                return False
+            
         return True
 
-    ###############################################################################
-    # 読み込んだ動画が未対応
-    ###############################################################################
-    def importError(self):
-        # 読み込んだ動画が未対応のファイル形式だった
-        errorText = f"動画が対応していないか壊れています。/n"
-        tk.messagebox.showwarning(title="ImportError", message=f"{errorText}/n{self.path}")
-        keiUtil.logAdd(f"{errorText} -> {self.path}") 
 
 ###############################################################################
 # PlayMovie クラス
@@ -138,21 +178,25 @@ class PlayMovie:
         self.view = view
 
     ###############################################################################
-    # 現在のフレームの内容で描画を更新する
+    # スレッドループでの処理      ※ 現在のフレームの内容で描画を更新する
     ###############################################################################
     def PlayMovie_func(self):
-        start = time.time()
 
-        ret, self.myVideo.video_frame = self.myVideo.capture.read() # フレーム画像の読み込み
+        if self.parent.s_st.bSynchronizationPlayingTime == True: start = time.time()    # ※1
+
+        ret, self.myVideo.video_frame = self.myVideo.getFramePicture()      # フレーム画像の読み込み
 
         if ret:
-            self.moveCountUp(self.myVideo.video_frame)                      # 読み込んだ画像でイメージを更新する
-            diff = time.time() - start
-            tempWait = float((1/self.myVideo.fps) - diff - start)
-            if (1/self.myVideo.fps) < float((1/self.myVideo.fps) - diff):
-                time.sleep(tempWait)
-            else:
-                print("遅延")
+            self.moveCountUp()                                              # 読み込んだ画像でイメージを更新する
+
+            if self.parent.s_st.bSynchronizationPlayingTime == True:        # ※1 再生速度の同期処理
+                diff = time.time() - start  # 処理にかかった時間
+                tempWait = float((1/self.myVideo.fps) - diff)
+                if (1/self.myVideo.fps) > diff:
+                    # 処理時間が早い場合待つ
+                    time.sleep(tempWait)
+                else:
+                    print("遅延")     # デバッグ用
 
         else:
             self.parent.s_st.playingMovie = False               # 再生を終了する
@@ -161,13 +205,9 @@ class PlayMovie:
     ###############################################################################
     # 現在のフレームの内容で描画を更新する
     ###############################################################################
-    def moveCountUp(self, frame):
-#         if self.capture.get(cv2.CAP_PROP_POS_FRAMES) < self.capture.get(cv2.CAP_PROP_FRAME_COUNT):
-#             self.capture.set(cv2.CAP_PROP_POS_FRAMES, self.capture.get(cv2.CAP_PROP_POS_FRAMES))
-# #            self.capture.set(cv2.CAP_PROP_POS_FRAMES, self.capture.get(cv2.CAP_PROP_POS_FRAMES))
-#             return
+    def moveCountUp(self):
         # キャンバス画像を更新
-        self.updateCanvasImage(frame)
+        self.updateCanvasImage()
 
         # 現在の動画位置を取得し、描画のカウントを更新する
         frame_Num = int(self.myVideo.capture.get(cv2.CAP_PROP_POS_FRAMES))
@@ -176,23 +216,25 @@ class PlayMovie:
     ###############################################################################
     # キャンバス画像を更新する
     ###############################################################################
-    def updateCanvasImage(self, frame):
-        ret, self.video_frame = self.myVideo.capture.read()
+    def updateCanvasImage(self):
+        # フレーム画像の有無の確認
+        if self.myVideo.video_frame is None:
+            # フレーム画像の取得に失敗しているときは更新しない
+            return
 
-        if ret:
-            # 画像の加工
-            pil = self.cvtopli_color_convert(self.myVideo.video_frame)  # 読み込んだ画像を Pillow で使えるようにする
-            self.resizedImg, self.resizedImgCanvas = self.resize_image(pil, self.view.CANVAS_VIEW)   # 画像のリサイズ
+        # 画像の加工
+        pil = self.cvtopli_color_convert(self.myVideo.video_frame)  # 読み込んだ画像を Pillow で使えるようにする
+        resizedImg, resizedImgCanvas = self.resize_image(pil, self.view.CANVAS_VIEW)   # 画像のリサイズ
 
-            # キャンバスの画像を更新する
-            self.replace_canvas_image(self.resizedImg, self.view.CANVAS_VIEW, self.resizedImgCanvas)
+        # キャンバスの画像を更新する
+        self.replace_canvas_image(resizedImg, self.view.CANVAS_VIEW, resizedImgCanvas)
 
     ###############################################################################
     # BGR →　RGB　変換      ※ OpenCV imread()で読むと色の順番がBGRになるため
     # ※ updateCanvasImage用
     ###############################################################################
-    def cvtopli_color_convert(self, video):
-        rgb = cv2.cvtColor(video, cv2.COLOR_BGR2RGB)
+    def cvtopli_color_convert(self, frame):
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         return Image.fromarray(rgb)
 
     ###############################################################################
@@ -241,7 +283,7 @@ class PlayMovie:
         self.view.scale_var.set(frameNum)       
 
         # 動画カウントの更新
-        if ( frameNum == 0 or (frameNum % (self.myVideo.fps)) == 0):
+        if ( frameNum == 0 or (frameNum % (self.myVideo.fps)) == 0 or self.parent.s_st.bSliderMoving == True):
             # 動画読み込み時 or 1秒に1回更新
             currentTime = keiUtil.secToTime((int)(frameNum/self.myVideo.fps))
             self.view.secStr_var.set(f"{currentTime[0]:02d}:{currentTime[1]:02d}:{currentTime[2]:02d}/"
@@ -267,18 +309,10 @@ class MovieCapture:
     #   引数1: 出力先ファイルパス
     ###############################################################################
     def getCapture(self, filePath):
-        if self.myVideo.video_frame is None:
-            # フレームに画像がない時、画像を取得
-            ret, self.myVideo.video_frame = self.myVideo.capture.read()
-            if ret == False:
-                # フレーム画像の取得に失敗
-                frame_Num = int(self.myVideo.capture.get(cv2.CAP_PROP_POS_FRAMES))
-
-                if self.cap_var.get() == False:
-                    text = "画像の取得に失敗しました。"
-                    tk.messagebox.showerror("画像取得エラー", f"{text}\n\n{frame_Num}フレーム目:{self.myVideo.path}")
-                keiUtil.logAdd(f"{text}\n -> {frame_Num}フレーム目:{self.myVideo.path}", 2)
-                return False        
+        ret = self.myVideo.checkAndReadVideoFrame()
+        if ret == False:
+            # フレーム画像の取得に失敗
+            return False        
 
         ret = self.movieOutput(self.myVideo.video_frame, filePath)
         if ret == False:
@@ -316,7 +350,7 @@ class MovieCapture:
             count = 1       # 最初からなら暫定で 1 からに変更 (0フレーム目を取得する処理をそのうち作る)
 
         # 出力先フォルダがなければ作成
-        pictDir = f"{outFolderPath}/{self.myVideo.fileName}"  # 「引数の出力先フォルダ\動画のファイル名」
+        pictDir = f"{outFolderPath}/{self.myVideo.fileName}/{keiUtil.getTime()}"  # 「引数の出力先フォルダ\動画のファイル名」
         os.makedirs(pictDir, exist_ok=True)
 
         # 開始位置の1つ前にキャプチャ位置を移動
@@ -328,7 +362,7 @@ class MovieCapture:
         # 動画のフレームを順番に見ていく
         while True:
             # フレームの情報を読み込む
-            ret, frame = self.myVideo.capture.read()
+            ret, frame = self.myVideo.getFramePicture()
             
             if not ret or count == EndPos + 1:
                 # 終了位置になるか、フレームを読み込めなければループを抜ける 
@@ -340,7 +374,7 @@ class MovieCapture:
                 # キャプチャ頻度ごと(1秒 or コンボボックス設定値)
 
                 # 「動画ファイル名_XXXXXX(フレーム数)_yyyymmdd_HHMMSS.png」 でファイル出力
-                pictPath = f"{pictDir}/{self.myVideo.fileName}_{count:06}_{keiUtil.getTime()}.png"
+                pictPath = f"{pictDir}/{self.myVideo.fileName}_{count:06}.png"
                 cv2.imwrite(pictPath, frame)
                 keiUtil.logAdd(f"画像出力:{pictPath}")
 
