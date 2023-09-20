@@ -6,21 +6,19 @@
 import os
 import cv2
 import keiUtil
-import tkinter as tk    # メッセージボックス表示用
 import configparser
 import keiUtil
 import cv2
 import time
 
-
-# gazousyori 関係
+# 画像処理 関係
 import tkinter as tk
-from tkinter.filedialog import askopenfile
+# from tkinter import ttk
 from PIL import Image, ImageTk
-#from PIL import Image, ImageOps, ImageTk
 
 # GUI関係
-import tkinter as tk
+from tkinter import messagebox
+from tkinter.filedialog import askopenfile
 
 # iniファイル読込
 inifile = configparser.SafeConfigParser()
@@ -78,7 +76,7 @@ class ManagementMovie:
 
         self.fileName = os.path.splitext(os.path.basename(self.path))[0]  # 動画のファイル名
         tempfps = self.capture.get(cv2.CAP_PROP_FPS)                      # 動画の秒間フレーム数の取得
-        self.fps= int(int((tempfps+0.5)*10)/10)                           # fpsを小数点以下で四捨五入           
+        self.fps= int(int((tempfps+0.5)*10)/10)                           # fpsを小数点以下で四捨五入
         self.totalCount = int(self.capture.get(cv2.CAP_PROP_FRAME_COUNT)) # 動画の総フレーム数の取得
         self.totalMovieCount = self.getTotalMovieCount()                  # 動画の総再生時間(文字列)
 
@@ -89,7 +87,7 @@ class ManagementMovie:
         keiUtil.logAdd(f"総フレーム数:{self.totalCount} (再生時間：{self.totalMovieCount})")
 
         return True
- 
+
     ###############################################################################
     # 動画の情報の解析
     #  引数1: str inMoviePath 入力動画のパス
@@ -115,7 +113,7 @@ class ManagementMovie:
         # 読み込んだ動画が未対応のファイル形式だった
         errorText = f"動画が対応していないか壊れています。/n"
         tk.messagebox.showwarning(title="ImportError", message=f"{errorText}/n{self.path}")
-        keiUtil.logAdd(f"{errorText} -> {self.path}") 
+        keiUtil.logAdd(f"{errorText} -> {self.path}")
 
     ###############################################################################
     # 動画の総再生時間を取得する
@@ -160,7 +158,7 @@ class ManagementMovie:
             ret = self.getFramePicture()
             if ret == False:
                 return False
-            
+
         return True
 
 
@@ -262,7 +260,7 @@ class PlayMovie:
         )
 
         return resizedImg, resizedImgCanvas
-    
+
     ###############################################################################
     # 画像の置き換え
     # ※ updateCanvasImage用
@@ -278,9 +276,9 @@ class PlayMovie:
         if self.myVideo.setMovie == False:
             # 動画を読み込んでいなければ return
             return
-        
+
         # スクロールバーの更新
-        self.view.scale_var.set(frameNum)       
+        self.view.scale_var.set(frameNum)
 
         # 動画カウントの更新
         if ( frameNum == 0 or (frameNum % (self.myVideo.fps)) == 0 or self.parent.s_st.bSliderMoving == True):
@@ -304,15 +302,17 @@ class MovieCapture:
         self.myVideo = myVideo
         self.view = view
 
+        self.pb_Var = tk.IntVar()       # 出力時プログレスバー用変数
+
     ###############################################################################
-    # キャプチャ出力
+    # キャプチャ
     #   引数1: 出力先ファイルパス
     ###############################################################################
     def getCapture(self, filePath):
         ret = self.myVideo.checkAndReadVideoFrame()
         if ret == False:
             # フレーム画像の取得に失敗
-            return False        
+            return False
 
         ret = self.movieOutput(self.myVideo.video_frame, filePath)
         if ret == False:
@@ -323,7 +323,7 @@ class MovieCapture:
             keiUtil.logAdd(f"{text}\n -> {filePath}", 2)
 
     ###############################################################################
-    # キャプチャ出力 (本体)
+    # キャプチャ (本体)
     #  引数1: 画像イメージ
     #  引数1: 出力先パス
     ################################################################################
@@ -337,7 +337,7 @@ class MovieCapture:
         keiUtil.logAdd(f"画像出力:{pictPath}")
 
     ###############################################################################
-    # 動画のキャプチャ
+    # 動画の出力
     #  引数1: str outFolderPath 出力先フォルダ(選択場所)
     #  引数2: str StartPos      キャプチャ範囲：開始位置
     #  引数3: str EndPos        キャプチャ範囲：終了位置
@@ -345,39 +345,57 @@ class MovieCapture:
     ################################################################################
     def movieCapture(self, outFolderPath, StartPos, EndPos, captureFreq):
 
-        count = StartPos    # フレーム用カウンタ
-        if count == 0:
-            count = 1       # 最初からなら暫定で 1 からに変更 (0フレーム目を取得する処理をそのうち作る)
+        surplus = 0         # デフォルトのフレームずれの初期化
+        count = StartPos    # ファイル名称フレーム用のカウンタ
 
         # 出力先フォルダがなければ作成
         pictDir = f"{outFolderPath}/{self.myVideo.fileName}/{keiUtil.getTime()}"  # 「引数の出力先フォルダ\動画のファイル名」
         os.makedirs(pictDir, exist_ok=True)
 
-        # 開始位置の1つ前にキャプチャ位置を移動
-        self.myVideo.capture.set(cv2.CAP_PROP_POS_FRAMES, StartPos - 1)
+        # キャプチャ位置を開始位置に移動
+        self.myVideo.capture.set(cv2.CAP_PROP_POS_FRAMES, StartPos)
+
+        # キャプチャ回数の初期化
+        frameCount = EndPos - StartPos
+        surplus = StartPos % captureFreq   # フレームずれの取得
 
         keiUtil.logAdd("キャプチャ開始", 1)
 
-
         # 動画のフレームを順番に見ていく
         while True:
-            # フレームの情報を読み込む
-            ret, frame = self.myVideo.getFramePicture()
-            
-            if not ret or count == EndPos + 1:
-                # 終了位置になるか、フレームを読み込めなければループを抜ける 
-                keiUtil.logAdd("キャプチャ終了", 1)
+            if self.parent.s_st.bStopMovieCapture is True:
+                # 出力の中止
+                messagebox.showinfo("キャプチャ出力", "出力を中止しました！")
+                keiUtil.logAdd("キャプチャ出力中止", 3)
+                self.parent.progress_window.destroy()
                 break
 
             # ファイルの出力
-            if int(count % captureFreq) == 0:
+            if int(count % captureFreq) == 0 + surplus:
                 # キャプチャ頻度ごと(1秒 or コンボボックス設定値)
+
+                # フレームの情報を読み込む
+                ret, frame = self.myVideo.getFramePicture()
+                if not ret or count == EndPos + 1:
+                    # 終了位置になるか、フレームを読み込めなければループを抜ける ※ 正常終了であれば下のメッセージボックスで抜けるはず
+                    keiUtil.logAdd("キャプチャ終了", 1)
+                    break
 
                 # 「動画ファイル名_XXXXXX(フレーム数)_yyyymmdd_HHMMSS.png」 でファイル出力
                 pictPath = f"{pictDir}/{self.myVideo.fileName}_{count:06}.png"
                 cv2.imwrite(pictPath, frame)
                 keiUtil.logAdd(f"画像出力:{pictPath}")
 
-            count += 1  # カウントアップ
+                if self.parent.pb_var.get() >= 100:
+                    # 進捗率が100になればメッセージボックスを表示
+                    messagebox.showinfo("キャプチャ出力", "処理が完了しました！")
+                    keiUtil.logAdd("キャプチャ終了", 1)
+                    self.parent.progress_window.destroy()
+                    break
 
+            count += 1  # カウントアップ
+            # プログレスバーを進める
+            pbNum = int((count/frameCount) * 100)
+            self.parent.pb_var.set(pbNum)
+            self.parent.rateBar_var.set(f"{count} / {frameCount}  ({pbNum} %)")
 
