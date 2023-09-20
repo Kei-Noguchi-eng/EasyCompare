@@ -1,48 +1,43 @@
 # -*- coding: utf8 -*-
-###############################################################################
+###########################################################################
 # captureMovieDlg.pyw
 #   captureMovieのダイアログ
-################################################################################
-#import sys
+############################################################################
+# import sys
 import cv2
 import threading        # スレッド処理
 import configparser     # iniファイル読込
 import keiUtil          # 自作ユーティリティのインポート
-import time
-from captureMovie import ManagementMovie, PlayMovie, MovieCapture # 自作モジュールのインポート
+# import time
+
+# 自作モジュールのインポート
+from captureMovie import ManagementMovie, PlayMovie, MovieCapture
 
 # GUI関係
 import tkinter as tk
-from tkinter import ttk
-from tkinter import filedialog
-from tkinter.filedialog import askopenfile
-
-# 単体起動の間ここに追加
-keiUtil.checkExitFolder(keiUtil.managementArea) # 管理領域の作成
-keiUtil.toolName = "CaptureMovieDlg"
-keiUtil.execDay = keiUtil.getDay() # アプリケーションの起動日の取得
-keiUtil.logAdd("CaptureMovie 起動", 1)
+from tkinter import ttk, filedialog
+# from tkinter.filedialog import askopenfile
 
 # iniファイル読込
 inifile = configparser.SafeConfigParser()
 inifile.read("./settings.ini", encoding="utf-8")
 
 
-###############################################################################
+###########################################################################
 # View クラス
-###############################################################################
+###########################################################################
 class View():
 
-    ###############################################################################
- 	# コンストラクタ
-    ###############################################################################
+    ###########################################################################
+    # コンストラクタ
+    ###########################################################################
     def __init__(self, parent, myVideo):
         self.parent = parent
         self.myVideo = myVideo
 
-    ###############################################################################
+    ###########################################################################
     # オブジェクト生成　※ ボタン操作が化けるため、ダイアログ生成後に実施
-    ###############################################################################
+    ###########################################################################
     def init_func(self):
         # コントロール用変数の宣言
         self.SetControlVar()
@@ -53,9 +48,9 @@ class View():
         # コントロール用変数の初期化
         self.InitControlVar()
 
-    ###############################################################################
+    ###########################################################################
     # コントロール用変数の宣言
-    ###############################################################################
+    ###########################################################################
     def SetControlVar(self):
         self.movieStr_var = tk.StringVar()	# 動画タイトル
         self.posStart_var = tk.StringVar()  # 開始位置ラベル
@@ -67,9 +62,9 @@ class View():
         self.outPathStrvar = tk.StringVar() # 出力先パス
         self.freqList_list = ("1F")	# コンボボックス要素用配列
 
-    ###############################################################################
+    ###########################################################################
     # コントロール用変数の初期化 ダイアログ表示時、動画の再読み込みなど
-    ###############################################################################
+    ###########################################################################
     def InitControlVar(self):
         self.movieStr_var.set("Movie")
         self.frameAll_var.set("総フレーム数： -")
@@ -81,9 +76,9 @@ class View():
         self.freqList_list = ("1F")	# コンボボックス要素用配列
         self.CMB_FREQ.set("1F")		# コンボボックス設定値
 
-   ###############################################################################
+    ###########################################################################
     # Window の View
-    ###############################################################################
+    ###########################################################################
     def createView(self):
 
         # ウィンドウの設定
@@ -117,7 +112,7 @@ class View():
                         self.FRAME_CANVAS, orient=tk.HORIZONTAL,                            # スライダー
                         sliderlength=15, from_=0, to=300, resolution=1,
 #                        showvalue=0,   # デバッグ終わったら有効化する (スケールの数字が消える)
-                        variable = self.scale_var, command = self.parent.OnMoveSlider
+                        variable=self.scale_var, command=self.parent.OnMoveSlider
         )
         self.SCR_SCALE.place(relx=0.01, rely=0.86, relwidth=0.98, relheight=0.07)
 
@@ -196,13 +191,13 @@ class View():
         self.LBL_POSEND.place(relx=0.70, rely=0.58, relwidth=0.25, relheight=0.03)
 
 
-        self.radioValue = tk.IntVar(value = 0)     # 初期値
-        self.RDO_FRQSECOND = tk.Radiobutton(self.FRAME_MANIPURATE, text = "1秒毎にキャプチャを出力する", font=(1,9), justify="left",    # 1秒毎ラジオボタン
-                           variable = self.radioValue, value = 0)
+        self.radioValue = tk.IntVar(value=0)     # 初期値
+        self.RDO_FRQSECOND = tk.Radiobutton(self.FRAME_MANIPURATE, text="1秒毎にキャプチャを出力する", font=(1, 9), justify="left",    # 1秒毎ラジオボタン
+                                            variable=self.radioValue, value=0)
         self.RDO_FRQSECOND.place(relx=0.00, rely=0.64, relwidth=0.40, relheight=0.03)
 
-        self.RDO_FRQFRAME = tk.Radiobutton(self.FRAME_MANIPURATE, text = "", justify="left",    # フレーム指定ラジオボタン
-                           variable = self.radioValue, value = 1)
+        self.RDO_FRQFRAME = tk.Radiobutton(self.FRAME_MANIPURATE, text="", justify="left",    # フレーム指定ラジオボタン
+                                           variable=self.radioValue, value=1)
         self.RDO_FRQFRAME.place(relx=0.44, rely=0.64, relwidth=0.05, relheight=0.03)
         self.RDO_FRQFRAME.config(state=tk.DISABLED)
 
@@ -233,17 +228,17 @@ class View():
         self.BTN_CLOSE = self.SetBtnProp(self.FRAME_MANIPURATE, "閉じる", self.parent.OnBtnClose)          # 閉じるボタン
         self.BTN_CLOSE.place(relx=0.66, rely=0.91, relwidth=0.32, relheight=0.08)
 
-    ###############################################################################
+    ###########################################################################
     # ボタン属性定義のテンプレート
-    ###############################################################################
+    ###########################################################################
     def SetBtnProp(self, set_frame, btn_name, act_command):
         return tk.Button(set_frame, text=btn_name, width=10, command=act_command)
 
-    ###############################################################################
+    ###########################################################################
     # ボタンの状態制御
-    ###############################################################################
+    ###########################################################################
     def enableWidget(self):
-        if self.myVideo.setMovie == False:
+        if self.myVideo.setMovie is False:
             # 画像を読み込めていない時はボタン無効
             self.BTN_PLAY.config(state=tk.DISABLED)
             self.BTN_STOP.config(state=tk.DISABLED)
@@ -257,7 +252,7 @@ class View():
             self.CHK_CAP.config(state=tk.DISABLED)
             return
 
-        if self.parent.s_st.playingMovie == False:
+        if self.parent.s_st.playingMovie is False:
             # 動画を再生していない (≒再生可能)
             self.BTN_PLAY.config(state=tk.NORMAL)
             self.BTN_STOP.config(state=tk.DISABLED)    # 再生中に押せない
@@ -279,7 +274,7 @@ class View():
             self.BTN_CLOSE.config(state=tk.DISABLED)
             self.BTN_INPUTPATH.config(state=tk.DISABLED)
             self.BTN_OUTPUTPATH.config(state=tk.DISABLED)
-            if self.cap_var.get() == False:
+            if self.cap_var.get() is False:
                 # 簡易キャプチャ設定時はトーンダウンしない
                 self.BTN_CAP.config(state=tk.DISABLED)
             self.BTN_OUTPUT.config(state=tk.DISABLED)
@@ -287,9 +282,9 @@ class View():
             self.CHK_CAP.config(state=tk.DISABLED)
             self.CHK_PLAY_SYNC.config(state=tk.DISABLED)
 
-    ###############################################################################
+    ###########################################################################
     # コントロールの動画の情報を更新する
-    ###############################################################################
+    ###########################################################################
     def updateWidgetInfo(self):
         self.frameAve_var.set(f"秒間フレーム数：{self.myVideo.fps}")
         self.setCmbBoxItems(self.myVideo.fps)								# コンボボックスの要素を fps に応じて生成
@@ -304,10 +299,10 @@ class View():
         # 動画タイトルの更新
         self.movieStr_var.set(self.myVideo.fileName)
 
-    ###############################################################################
+    ###########################################################################
     # コンボボックスの選択肢を fpsのフレーム数を上限に 更新する
     #  引数1: int fps 入力動画の秒間フレーム数
-    ################################################################################
+    ###########################################################################
     def setCmbBoxItems(self, fps):
 
         listItems = []                          # 変数格納用の箱を作る
@@ -337,39 +332,39 @@ class View():
             oldFrame = frame
 
         self.freqList_list = listItems                          # コンボボックスの要素用変数を上書き
-        self.CMB_FREQ.configure(values = self.freqList_list)    # コンボボックスの設定を更新
+        self.CMB_FREQ.configure(values=self.freqList_list)    # コンボボックスの設定を更新
         self.CMB_FREQ.set(defFpsText)                           # 1秒毎(fps)に値を設定
         self.CMB_FREQ.config(state=tk.NORMAL)                   # コンボボックスの有効化
         self.RDO_FRQFRAME.config(state=tk.NORMAL)               # ラジオボタンの有効化
 
 
-###############################################################################
+###########################################################################
 # CaptureMovieDlg クラス
-###############################################################################
+###########################################################################
 class CaptureMovieDlg(tk.Frame):
 
-    ###############################################################################
+    ###########################################################################
     # ControlSetting クラス　(再生・入出力など設定の構造体)
-    ###############################################################################
+    ###########################################################################
     class ControlSetting:
 
-        ###############################################################################
+        #######################################################################
         # コンストラクタ
-        ###############################################################################
+        #######################################################################
         def __init__(self):
             self.playingMovie = False         # 再生中フラグ True の間フレームを更新する
             self.inputMovieFolder = inifile["MOVIE EDIT"]["inputMoviePath"]        # 読み込みファイルのデフォルトフォルダー
             self.outputFolderPath = inifile["MOVIE EDIT"]["outputPicturePath"]     # 出力先フォルダのパス
-            self.playDrawFrameFreq:int = 0   # 再生時の描画頻度設定 (キャンバスの更新を何Fごとに行うか)
-            self.outputFrameFreq:int = 0     # 出力時の出力頻度の設定 (何フレーム毎に出力するか)
+            self.playDrawFrameFreq: int = 0   # 再生時の描画頻度設定 (キャンバスの更新を何Fごとに行うか)
+            self.outputFrameFreq: int = 0     # 出力時の出力頻度の設定 (何フレーム毎に出力するか)
             self.tempcapNum = 0              # 簡易キャプチャ用連番
             self.bSliderMoving = False       # スライダー移動中フラグ
             self.bStopMovieCapture = False   # 動画出力中止フラグ
             self.bSynchronizationPlayingTime = False    # 動画再生の時間を同期する
 
-    ###############################################################################
+    ###########################################################################
  	# コンストラクタ
-    ###############################################################################
+    ###########################################################################
     def __init__(self, master):
         super().__init__(master)
         self.master = master
@@ -387,37 +382,37 @@ class CaptureMovieDlg(tk.Frame):
 
         # 設定構造体の生成
         self.s_st = self.ControlSetting()
-        self.view.outPathStrvar.set(self.s_st.outputFolderPath) # デフォルト出力パスの指定
-        self.updateTempcapNum()                                 # 簡易キャプチャ用連番更新
+        self.view.outPathStrvar.set(self.s_st.outputFolderPath)  # デフォルト出力パスの指定
+        self.updateTempcapNum()                                  # 簡易キャプチャ用連番更新
 
         # ウィンドウの x ボタンが押された時の設定
         self.master.protocol("WM_DELETE_WINDOW", self.delete_window)
 
-    ###############################################################################
+    ###########################################################################
  	# デストラクタ
-    ###############################################################################
+    ###########################################################################
     def __del__(self):
         # delete_window で解放されていなかった時用
         self.myVideo.releaseCapture()
 
-    ###############################################################################
+    ###########################################################################
  	# 変数初期化　フラグ系
-    ###############################################################################
+    ###########################################################################
     def init_var(self):
         self.tempcapNum = 0              # 簡易キャプチャ用連番
         self.thread_set = False          # スレッドを開始済みかのフラグ
 
-    ###############################################################################
+    ###########################################################################
     # スレッド処理
-    ###############################################################################
+    ###########################################################################
     def createThread(self):
         self.thread_set = True
         self.thread_movie = threading.Thread(target=self.main_thread_func)
         self.thread_movie.start()
 
-    ###############################################################################
+    ###########################################################################
     # スレッド処理
-    ###############################################################################
+    ###########################################################################
     def main_thread_func(self):
 
         self.myVideo.setMovie = True
@@ -429,9 +424,9 @@ class CaptureMovieDlg(tk.Frame):
 
                 self.playMovie.PlayMovie_func()
 
-    ###############################################################################
+    ###########################################################################
     # スレッドの解放
-    ###############################################################################
+    ###########################################################################
     def releaseThread(self):
         # スレッドの終了を待つ
         self.thread_movie.join()
@@ -439,28 +434,28 @@ class CaptureMovieDlg(tk.Frame):
         # 動画イメージの解放
         self.myVideo.releaseCapture()
 
-    ###############################################################################
+    ###########################################################################
     # ファイルを開くボタン(in) を押したときの動作
-    ###############################################################################
+    ###########################################################################
     def OnBtnInputPath(self):
         # 入力動画のパスを取得してエディットコントロールを更新
         ret = self.get_moviePath()
-        if ret == False:
+        if ret is False:
             return
 
         # 動画の読込
         ret = self.myVideo.readFile(self.myVideo.path)    # 引数無しで問題ないが使いまわし用
-        if ret == False:
+        if ret is False:
             return
 
         # コントロールを更新、有効化する
         self.view.updateWidgetInfo()
-        self.playMovie.updateMovieCount() # 動画の時間表示の更新
+        self.playMovie.updateMovieCount()  # 動画の時間表示の更新
         self.view.enableWidget()
 
         # キャンパスサイズの更新
-        self.view.canvasWidth = self.view.CANVAS_VIEW.winfo_width()    # キャンバスサイズの取得
-        self.view.canvasHeight = self.view.CANVAS_VIEW.winfo_height()  # キャンバスサイズの取得
+        self.view.canvasWidth = self.view.CANVAS_VIEW.winfo_width()
+        self.view.canvasHeight = self.view.CANVAS_VIEW.winfo_height()
 
         # フレームのデータを読み込む
         self.playMovie.moveCountUp()    # analyzeMovie()で読んだフレーム
@@ -468,28 +463,28 @@ class CaptureMovieDlg(tk.Frame):
         # スレッドの処理を開始する
         self.createThread()
 
-    ###############################################################################
+    ###########################################################################
     # フォルダを開くボタン(out) を押したときの動作
-    ###############################################################################
+    ###########################################################################
     def OnBtnOutputPath(self):
         ret = self.get_folderPath()
-        if ret == False:
+        if ret is False:
             return
 
         self.view.outPathStrvar.set(self.s_st.outputFolderPath)
 
-    ###############################################################################
+    ###########################################################################
     # 再生ボタンを押したときの動作
-    ###############################################################################
+    ###########################################################################
     def OnBtnPlay(self):
-        if self.myVideo.setMovie == False:
+        if self.myVideo.setMovie is False:
             # 念のため return させる
             return
 
         if self.myVideo.capture.get(cv2.CAP_PROP_POS_FRAMES) == self.myVideo.totalCount:
             # 現在位置が動画の最後であれば最初に戻って再生開始する
             self.resetPlayStatus()
-            ret, self.myVideo.video_frame = self.myVideo.getFramePicture() # フレームずれ対策
+            ret, self.myVideo.video_frame = self.myVideo.getFramePicture()  # フレームずれ対策
 
         # セット済みのフレームから動画を再生する
         self.s_st.playingMovie = True
@@ -498,9 +493,9 @@ class CaptureMovieDlg(tk.Frame):
         # 再生中のボタンの無効化
         self.view.enableWidget()
 
-    ###############################################################################
+    ###########################################################################
     # 停止ボタンを押したときの動作
-    ###############################################################################
+    ###########################################################################
     def OnBtnStop(self):
         # 現在のフレームで再生を停止する
         self.s_st.playingMovie = False
@@ -509,33 +504,33 @@ class CaptureMovieDlg(tk.Frame):
         # ボタンの有効化
         self.view.enableWidget()                     # コントロールの有効化
 
-    ###############################################################################
+    ###########################################################################
     # リセットボタンを押したときの動作
-    ###############################################################################
+    ###########################################################################
     def OnBtnReset(self):
         self.resetPlayStatus()
 
-    ###############################################################################
+    ###########################################################################
     #  動画出力の開始位置を指定する
-    ###############################################################################
+    ###########################################################################
     def OnBtnSetCapturePos_Start(self):
         self.myVideo.outputStartPos = self.view.scale_var.get()
         self.view.posStart_var.set(f"開始位置: {self.myVideo.outputStartPos}")
         keiUtil.logAdd(f"動画出力の開始位置を設定: {self.myVideo.outputStartPos}")
         self.view.BTN_POSRST.config(state=tk.NORMAL)
 
-    ###############################################################################
+    ###########################################################################
     #  動画出力の終了位置を指定する
-    ###############################################################################
+    ###########################################################################
     def OnBtnSetCapturePos_End(self):
         self.myVideo.outputEndPos = self.view.scale_var.get()
         self.view.posEnd_var.set(f"終了位置: {self.myVideo.outputEndPos}")
         keiUtil.logAdd(f"動画出力の終了位置を設定: {self.myVideo.outputEndPos}")
         self.view.BTN_POSRST.config(state=tk.NORMAL)
 
-    ###############################################################################
+    ###########################################################################
     #  動画出力範囲をリセットする
-    ###############################################################################
+    ###########################################################################
     def OnBtnResetCaptureRange(self):
         self.myVideo.outputStartPos = 0
         self.myVideo.outputEndPos = self.myVideo.totalCount
@@ -544,9 +539,9 @@ class CaptureMovieDlg(tk.Frame):
         keiUtil.logAdd(f"動画出力範囲を初期化　0:{self.myVideo.totalCount}")
         self.view.BTN_POSRST.config(state=tk.DISABLED)
 
-    ###############################################################################
+    ###########################################################################
     # スライダー操作
-    ###############################################################################
+    ###########################################################################
     def OnMoveSlider(self, event=None):
         # スライダー位置の画像を取得
         self.myVideo.capture.set(cv2.CAP_PROP_POS_FRAMES, self.view.scale_var.get())
@@ -566,35 +561,34 @@ class CaptureMovieDlg(tk.Frame):
 
         self.s_st.bSliderMoving = False  # スライダー移動済
 
-    ###############################################################################
+    ###########################################################################
     # 再生速度の同期 チェックボタンを押したときの動作
-    ###############################################################################
+    ###########################################################################
     def OnBtnSync(self):
         # チェックボックスの状態をフラグ変数に代入する
         self.s_st.bSynchronizationPlayingTime = self.view.playSync_var.get()
 
-    ###############################################################################
+    ###########################################################################
     # 閉じるボタンを押したときの動作
-    ###############################################################################
+    ###########################################################################
     def OnBtnClose(self):
         # ウィンドウを破棄する
         self.delete_window()
 
-    ###############################################################################
+    ###########################################################################
     # キャプチャボタンを押したときの動作
-    ###############################################################################
+    ###########################################################################
     def OnBtnCapture(self):
 
-        if self.view.cap_var.get() == True:
+        if self.view.cap_var.get() is True:
             # 簡易キャプチャが有効になっている
             tempFilePath = f"{keiUtil.managementArea}/EDIT_POOL/picture_out/temp/tempCapture_{self.myVideo.fileName}_{keiUtil.getTime()}_{self.tempcapNum:06}.png"
 
             # キャプチャを取得
-            if False == self.movieCapture.getCapture(tempFilePath):
+            if self.movieCapture.getCapture(tempFilePath) is False:
                 return
 
             self.s_st.tempcapNum += 1    # カウントアップする
-
 
         else:
             # 出力先を選択するダイアログを表示する
@@ -606,22 +600,21 @@ class CaptureMovieDlg(tk.Frame):
                 return
 
             # キャプチャを取得
-            if False == self.movieCapture.getCapture(tempFilePath):
+            if self.movieCapture.getCapture(tempFilePath) is False:
                 return
 
-    ###############################################################################
+    ###########################################################################
     # 出力ボタンを押したときの動作
-    ###############################################################################
+    ###########################################################################
     def OnBtnOutputCapture(self):
 
         # パスが空なら return
         if self.view.inPathStr_var == "":
             print("ng")
             return
-        elif  self.view.outPathStrvar == "":
+        elif self.view.outPathStrvar == "":
             print("ng")
             return
-
 
         if self.view.radioValue.get() == 0:
             # 1秒ごとにキャプチャを行う
@@ -633,14 +626,14 @@ class CaptureMovieDlg(tk.Frame):
 
         # 画像の出力に失敗
         messageText = f"出力ファイル：{self.myVideo.path}\n"\
-                        f"出力パス：{self.s_st.outputFolderPath}\n"\
-                        f"キャプチャ頻度：{captureFreq}F\n"\
-                        f"キャプチャ範囲： {self.myVideo.outputStartPos} ~ {self.myVideo.outputEndPos}\n\n"\
-                        "上記の設定でキャプチャを出力します。"
+            f"出力パス：{self.s_st.outputFolderPath}\n"\
+            f"キャプチャ頻度：{captureFreq}F\n"\
+            f"キャプチャ範囲： {self.myVideo.outputStartPos} ~ {self.myVideo.outputEndPos}\n\n"\
+            "上記の設定でキャプチャを出力します。"
         ret = tk.messagebox.askyesno("画像出力", f"{messageText}")
 
         # 確認のメッセージボックス表示
-        if ret == False:
+        if ret is False:
             # 選択が No なら return
             return
 
@@ -658,9 +651,9 @@ class CaptureMovieDlg(tk.Frame):
         # キャプチャ出力終了待ち
         main_window.wait_window(self.progress_window)
 
-    ###############################################################################
+    ###########################################################################
     # プログレスバーの作成
-    ###############################################################################
+    ###########################################################################
     def createProgressbar(self):
         self.progress_window = tk.Toplevel(self)
         self.progress_window.title("キャプチャ出力")
@@ -678,17 +671,17 @@ class CaptureMovieDlg(tk.Frame):
         self.progress_window.transient(self.master)   # タスクバーに表示しない
         self.thread_capture.start()
 
-    ###############################################################################
+    ###########################################################################
     # STOPボタン(プログレスバー)を押した
-    ###############################################################################
+    ###########################################################################
     def OnBtnStopProg(self):
         # 動画出力中止フラグを立てる
         self.s_st.bStopMovieCapture = True
         self.BTN_STOPPROG.config(state=tk.DISABLED)
 
-    ###############################################################################
+    ###########################################################################
     # 入力動画パスを取得する
-    ###############################################################################
+    ###########################################################################
     def get_moviePath(self):
         # ファイルダイアログを開く
         tempMoviePath = tk.filedialog.askopenfilename(title="動画ファイルを選択してください", filetypes=self.view.movieFile_filter, initialdir=self.s_st.inputMovieFolder)
@@ -697,20 +690,20 @@ class CaptureMovieDlg(tk.Frame):
             # ファイルを選択せずに閉じていたら return
             return False
 
-        if self.myVideo.setMovie == True:
+        if self.myVideo.setMovie is True:
             # 動画読み込み済みの場合古い動画のスレッドを終了する コントロール系もここで解放
             self.myVideo.setMovie = False
-            self.releaseThread()                    # 既に読み込み済みの動画があれば開放する
-            self.view.CANVAS_VIEW.delete("can_pic") # 本体側に何か書く
-            self.myVideo.crearVar()                 # 動画管理用変数初期化
+            self.releaseThread()                     # 既に読み込み済みの動画があれば開放する
+            self.view.CANVAS_VIEW.delete("can_pic")  # 本体側に何か書く
+            self.myVideo.crearVar()                  # 動画管理用変数初期化
 
         # 入力動画のパスを更新
-        self.myVideo.path= tempMoviePath
+        self.myVideo.path = tempMoviePath
 
-       # 入力動画フォルダの更新
+        # 入力動画フォルダの更新
         selectFolder = self.myVideo.path[:self.myVideo.path.rfind('/')]
         ret = keiUtil.checkIniFile("MOVIE EDIT", "inputMoviePath", selectFolder)
-        if ret == True:
+        if ret is True:
             self.s_st.inputMovieFolder = selectFolder
         self.view.inPathStr_var.set(self.myVideo.path)         # エディットコントロールのパスの更新
 
@@ -718,16 +711,16 @@ class CaptureMovieDlg(tk.Frame):
 
         return True
 
-    ###############################################################################
+    ###########################################################################
     # 簡易キャプチャ用連番取得
-    ################################################################################
+    ############################################################################
     def updateTempcapNum(self):
         serchPath = f"{keiUtil.managementArea}/EDIT_POOL/picture_out/temp/tempCapture_{self.myVideo.fileName}_*_*.png"
         self.tempcapNum = keiUtil.getLastFileNumber(serchPath)
 
-    ###############################################################################
+    ###########################################################################
     # 出力先フォルダパスを取得する
-    ###############################################################################
+    ###########################################################################
     def get_folderPath(self):
         # ファイルダイアログを開く
         self.s_st.outputFolderPath = tk.filedialog.askdirectory(title="出力先フォルダを選択してください", initialdir=self.s_st.outputFolderPath)
@@ -741,14 +734,14 @@ class CaptureMovieDlg(tk.Frame):
 
         keiUtil.logAdd(f"出力画像パス:{self.s_st.outputFolderPath}")
 
-    ###############################################################################
+    ###########################################################################
     # 動画の再生状態をリセットする
     #   ※リセットボタンの他、再生完了状態での再生開始でも呼ぶ
-    ###############################################################################
+    ###########################################################################
     def resetPlayStatus(self):
         self.myVideo.capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
-        ret, self.myVideo.video_frame = self.myVideo.getFramePicture() # フレーム画像の読み込み
+        ret, self.myVideo.video_frame = self.myVideo.getFramePicture()  # フレーム画像の読み込み
 
         self.playMovie.moveCountUp()
 
@@ -756,16 +749,17 @@ class CaptureMovieDlg(tk.Frame):
         self.view.scale_var.set(0)       # スライダーを開始位置に戻す
         self.view.enableWidget()         # コントロールの有効化
 
-    ###############################################################################
- 	# ダイアログを閉じるときの処理
- 	#   ※ダイアログの×、閉じるボタンで呼ぶ
-    ###############################################################################
+    ###########################################################################
+    # ダイアログを閉じるときの処理
+    #   ※ダイアログの×、閉じるボタンで呼ぶ
+    ###########################################################################
     def delete_window(self):
-        if self.s_st.playingMovie == True:
+        if self.s_st.playingMovie is True:
             # 再生中はメッセージを出して return
             tk.messagebox.showwarning(
-            title = "終了エラー",
-            message = "動画の再生中は終了できません。")
+                title="終了エラー",
+                message="動画の再生中は終了できません。"
+            )
             return
 
         # 終了確認のメッセージ表示
@@ -773,11 +767,11 @@ class CaptureMovieDlg(tk.Frame):
             title="終了確認",
             message="プログラムを終了しますか？")
 
-        if ret == True:
+        if ret is True:
             # スレッドのループから抜ける
             self.myVideo.setMovie = False
 
-            if self.thread_set == True:
+            if self.thread_set is True:
                 # スレッドの終了を待つ
                 self.releaseThread()
 
@@ -787,10 +781,16 @@ class CaptureMovieDlg(tk.Frame):
             keiUtil.logAdd("CaptureMovie 終了", 1)
 
 
-###############################################################################
+###########################################################################
 # 動作確認用
-###############################################################################
+###########################################################################
 if __name__ == "__main__":
+
+    keiUtil.checkExitFolder(keiUtil.managementArea)  # 管理領域の作成
+    keiUtil.toolName = "CaptureMovieDlg"
+    keiUtil.execDay = keiUtil.getDay()  # アプリケーションの起動日の取得
+    keiUtil.logAdd("CaptureMovie 起動", 1)
+
     main_window = tk.Tk()
     captureMovieDlg = CaptureMovieDlg(main_window)
-    main_window.mainloop()  # 　フレームループ処理
+    main_window.mainloop()  # ウィンドウのループ処理
