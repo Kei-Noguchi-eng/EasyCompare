@@ -42,7 +42,7 @@ def logAdd(text, nMode=0):
 # フォルダの存在確認 (なければ作成)
 #  引数1: str dir_path      確認するフォルダのパス
 ####################################################################################################################
-def checkExitFolder(dir_path):
+def checkExistFolder(dir_path):
     if (dir_path != "") & (os.path.isfile(dir_path) is False):
         os.makedirs(dir_path, exist_ok=True)
 

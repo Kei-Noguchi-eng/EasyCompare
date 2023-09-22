@@ -73,7 +73,7 @@ class CManagementMovie:
         if ret is False:
             self.capture = None
             keiUtil.logAdd(f"動画の読込に失敗 -> {self.path}", 3)
-            return
+            return False
 
         self.fileName = os.path.splitext(os.path.basename(self.path))[0]   # 動画のファイル名
         tempfps = self.capture.get(cv2.CAP_PROP_FPS)                       # 動画の秒間フレーム数の取得
@@ -323,7 +323,7 @@ class CMovieCapture:
             if self.view.cap_var.get() is False:
                 text = "画像の出力に失敗しました。"
                 tk.messagebox.showerror("画像出力エラー", f"{text}\n\n{filePath}")
-            keiUtil.logAdd(f"{text}\n -> {filePath}", 2)
+                keiUtil.logAdd(f"{text}\n -> {filePath}", 2)
 
     ####################################################################################################################
     # キャプチャ (本体)
@@ -353,7 +353,7 @@ class CMovieCapture:
         os.makedirs(pictDir, exist_ok=True)
 
         # キャプチャ位置を開始位置に移動
-        self.myVideo.capture.set(cv2.CAP_PROP_POS_FRAMES, StartPos)
+        self.myVideo.capture.set(cv2.CAP_PROP_POS_FRAMES, StartPos - 1)
 
         # 変数の初期化
         self.parent.s_st.bStopMovieCapture = False  # 出力中止フラグの初期化
@@ -381,7 +381,7 @@ class CMovieCapture:
 
             # フレームを読み込めなければループを抜ける ※ 正常終了であれば下のメッセージボックスで抜けるはず
             if ret is False:
-                text = "キャプチャ異常終了 ({count + StartPos} フレーム)"
+                text = f"キャプチャ異常終了 ({count + StartPos} フレーム)"
                 keiUtil.logAdd(text, 3)
                 messagebox.showinfo("キャプチャ出力", f"{text}。")
                 if self.parent.s_st.bNotShowProgressBar is False:
@@ -400,11 +400,14 @@ class CMovieCapture:
                     # ログ出力を行わない
                     print(f"画像出力:{pictPath}")
 
+            pbNum = int(((count - StartPos)/frameCount) * 100)
             if self.parent.s_st.bNotShowProgressBar is False:
                 # プログレスバー表示の更新
-                pbNum = int(((count - StartPos)/frameCount) * 100)
+
                 self.parent.pb_var.set(pbNum)           # プログレスバーを進める
                 self.parent.rateBar_var.set(f"{count - StartPos}/ {frameCount}  ({pbNum} %)")
+            else:
+                self.view.btnOutput_var.set(f"出力中 {pbNum}%")
 
             # 進捗率が100になればメッセージボックスを表示
             if count == frameCount + StartPos:

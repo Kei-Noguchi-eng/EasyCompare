@@ -237,22 +237,22 @@ class CView():
         self.CHK_CAP.config(state=tk.DISABLED)
         self.cap_var.set(False)
 
-        self.BTN_OUTPUT = self.SetBtnProp(self.FRAME_MANIPURATE, "出力", self.parent.OnBtnOutputCapture)   # 出力ボタン
+        self.btnOutput_var = tk.StringVar()
+        self.BTN_OUTPUT = tk.Button(self.FRAME_MANIPURATE, textvariable=self.btnOutput_var, width=10, command=self.parent.OnBtnOutputCapture)   # 出力ボタン
         self.BTN_OUTPUT.place(relx=0.51, rely=0.70, relwidth=0.45, relheight=0.15)
         self.BTN_OUTPUT.config(state=tk.DISABLED)
+        self.btnOutput_var.set("出力")
 
         self.noProg_var = tk.BooleanVar()  # チェックボックスの状態設定用変数
         self.CHK_PROG = tk.Checkbutton(self.FRAME_MANIPURATE, variable=self.noProg_var,  # プログレスバーを表示しないフラグ
                                        text="プログレスバーを表示しない", anchor=tk.W, command=self.parent.OnBtnNoProg)
         self.CHK_PROG.place(relx=0.51, rely=0.86, relwidth=0.45, relheight=0.03)
-        self.CHK_PROG.config(state=tk.DISABLED)
         self.noProg_var.set(False)
 
         self.noLog_var = tk.BooleanVar()  # チェックボックスの状態設定用変数
         self.CHK_NOTLOG = tk.Checkbutton(self.FRAME_MANIPURATE, variable=self.noLog_var,  # キャプチャ出力のログを出力しないフラグ
                                          text="キャプチャ出力情報をログに出力しない", anchor=tk.W, command=self.parent.OnBtnNoLog)
         self.CHK_NOTLOG.place(relx=0.51, rely=0.90, relwidth=0.45, relheight=0.03)
-        self.CHK_NOTLOG.config(state=tk.DISABLED)
         self.noLog_var.set(False)
 
         self.BTN_CLOSE = self.SetBtnProp(self.FRAME_MANIPURATE, "閉じる", self.parent.OnBtnClose)          # 閉じるボタン
@@ -269,53 +269,75 @@ class CView():
     ####################################################################################################################
     def enableWidget(self):
         if self.myVideo.setMovie is False:
-            # 画像を読み込めていない時はボタン無効
-            self.BTN_PLAY.config(state=tk.DISABLED)
-            self.BTN_STOP.config(state=tk.DISABLED)
-            self.BTN_RSTPLAY.config(state=tk.DISABLED)
-            self.BTN_POSSTART.config(state=tk.DISABLED)
-            self.BTN_POSEND.config(state=tk.DISABLED)
-            self.CMB_FREQ.config(state=tk.DISABLED)
-            self.BTN_CAP.config(state=tk.DISABLED)
-            self.SCR_SCALE.config(state=tk.DISABLED)
-            self.CHK_PLAY_SYNC.config(state=tk.DISABLED)
-            self.CHK_CAP.config(state=tk.DISABLED)
-            self.CHK_PROG.config(state=tk.DISABLED)
-            self.CHK_NOTLOG.config(state=tk.DISABLED)
+            self.duringReadMovie(self, False)
             return
 
-        self.CHK_PROG.config(state=tk.NORMAL)
-        self.CHK_NOTLOG.config(state=tk.NORMAL)
-
-        if self.parent.s_st.playingMovie is False:
-            # 動画を再生していない (≒再生可能)
-            self.BTN_PLAY.config(state=tk.NORMAL)
-            self.BTN_STOP.config(state=tk.DISABLED)    # 再生中に押せない
-            self.BTN_RSTPLAY.config(state=tk.NORMAL)
-            self.BTN_CLOSE.config(state=tk.NORMAL)
-            self.BTN_INPUTPATH.config(state=tk.NORMAL)
-            self.BTN_OUTPUTPATH.config(state=tk.NORMAL)
-            self.BTN_POSSTART.config(state=tk.NORMAL)    # 常に押せる (動画読み込み時に有効化)
-            self.BTN_POSEND.config(state=tk.NORMAL)      # 常に押せる (動画読み込み時に有効化)
-            self.BTN_CAP.config(state=tk.NORMAL)
-            self.BTN_OUTPUT.config(state=tk.NORMAL)
-            self.SCR_SCALE.config(state=tk.NORMAL)          # 再生中のスライダー操作で落ちるバグがあるため封印
-            self.CHK_CAP.config(state=tk.NORMAL)
-            self.CHK_PLAY_SYNC.config(state=tk.NORMAL)
+        if self.parent.s_st.playingMovie is True:
+            # 再生中のボタントーンダウン
+            self.duringPlayMovie(True)
         else:
-            self.BTN_PLAY.config(state=tk.DISABLED)
+            # 再生終了のトーンダウン解除
+            self.duringPlayMovie(False)
+
+    ####################################################################################################################
+    # 動画を読み込んだ時のボタンの状態変化
+    ####################################################################################################################
+    def duringReadMovie(self, state):
+        if state is True:
+            # 動画読み込み後にボタンがトーンアップ
+            bChangeState = tk.NORMAL
+        else:
+            # 画像を読み込めていない時はボタン無効
+            bChangeState = tk.DISABLED
+
+        self.BTN_PLAY.config(state=bChangeState)
+        self.BTN_STOP.config(state=tk.DISABLED)  # 読込直後は常にFalse
+        self.BTN_RSTPLAY.config(state=bChangeState)
+        self.BTN_POSSTART.config(state=bChangeState)
+        self.BTN_POSEND.config(state=bChangeState)
+        self.CMB_FREQ.config(state=bChangeState)
+        self.BTN_CAP.config(state=bChangeState)
+        self.BTN_OUTPUT.config(state=bChangeState)
+        self.SCR_SCALE.config(state=bChangeState)
+        self.CHK_PLAY_SYNC.config(state=bChangeState)
+        self.CHK_CAP.config(state=bChangeState)
+        self.CHK_PROG.config(state=bChangeState)
+        self.CHK_NOTLOG.config(state=bChangeState)
+
+    ####################################################################################################################
+    # 動画再生中のボタンの状態変化
+    ####################################################################################################################
+    def duringPlayMovie(self, state):
+        if state is True:
+            bChangeState = tk.DISABLED
+        else:
+            bChangeState = tk.NORMAL
+
+        self.BTN_PLAY.config(state=bChangeState)
+        if state is True:
             self.BTN_STOP.config(state=tk.NORMAL)    # 再生中に押せる
-            self.BTN_RSTPLAY.config(state=tk.DISABLED)
-            self.BTN_CLOSE.config(state=tk.DISABLED)
-            self.BTN_INPUTPATH.config(state=tk.DISABLED)
-            self.BTN_OUTPUTPATH.config(state=tk.DISABLED)
-            if self.cap_var.get() is False:
-                # 簡易キャプチャ設定時はトーンダウンしない
-                self.BTN_CAP.config(state=tk.DISABLED)
-            self.BTN_OUTPUT.config(state=tk.DISABLED)
-            self.SCR_SCALE.config(state=tk.DISABLED)          # 再生中のスライダー操作で落ちるバグがあるため封印
-            self.CHK_CAP.config(state=tk.DISABLED)
-            self.CHK_PLAY_SYNC.config(state=tk.DISABLED)
+        else:
+            self.BTN_STOP.config(state=tk.DISABLED)
+        self.BTN_RSTPLAY.config(state=bChangeState)
+        self.BTN_CLOSE.config(state=bChangeState)
+        self.BTN_INPUTPATH.config(state=bChangeState)
+        self.BTN_OUTPUTPATH.config(state=bChangeState)
+        self.BTN_OUTPUTFOLDER.config(state=bChangeState)
+        if state is True and self.cap_var.get() is False:
+            # 簡易キャプチャ設定時でなければ再生中はトーンダウン
+            self.BTN_CAP.config(state=tk.DISABLED)
+        else:
+            self.BTN_CAP.config(state=tk.NORMAL)      # 念のため解放処理
+        self.CHK_CAP.config(state=bChangeState)
+        self.BTN_OUTPUT.config(state=bChangeState)
+        self.CMB_FREQ.config(state=bChangeState)
+        self.SCR_SCALE.config(state=bChangeState)     # 再生中のスライダー操作で落ちるバグがあるため封印
+        self.RDO_FRQFRAME.config(state=bChangeState)
+        self.RDO_FRQSECOND.config(state=bChangeState)
+        self.CHK_CAP.config(state=bChangeState)
+        self.CHK_PLAY_SYNC.config(state=bChangeState)
+        self.CHK_PROG.config(state=bChangeState)
+        self.CHK_NOTLOG.config(state=bChangeState)
 
     ####################################################################################################################
     # コントロールの動画の情報を更新する
@@ -483,12 +505,14 @@ class CCaptureMovieDlg(tk.Frame):
         # 動画の読込
         ret = self.myVideo.readFile(self.myVideo.path)    # 引数無しで問題ないが使いまわし用
         if ret is False:
+            # ボタン状態の初期化
+            self.view.duringReadMovie(False)
             return
 
         # コントロールを更新、有効化する
         self.view.updateWidgetInfo()
         self.playMovie.updateMovieCount()  # 動画の時間表示の更新
-        self.view.enableWidget()
+        self.view.duringReadMovie(True)
 
         # キャンパスサイズの更新
         self.view.canvasWidth = self.view.CANVAS_VIEW.winfo_width()
@@ -641,8 +665,11 @@ class CCaptureMovieDlg(tk.Frame):
 
         if self.view.cap_var.get() is True:
             # 簡易キャプチャが有効になっている
-            tempFilePath = f"{keiUtil.managementArea}/EDIT_POOL/picture_out/temp/\
-                tempCapture_{self.myVideo.fileName}_{keiUtil.getTime()}_{self.tempcapNum:06}.png"
+            tempFilePath = f"{keiUtil.managementArea}/EDIT_POOL/picture_out/temp/tempCapture_{self.myVideo.fileName}_{keiUtil.getTime()}_{self.s_st.tempcapNum:06}.png"
+
+            # 出力先フォルダを確認し、無ければ作成する
+            parentFolder = tempFilePath[:tempFilePath.rfind('/')]
+            keiUtil.checkExistFolder(parentFolder)
 
             # キャプチャを取得
             if self.movieCapture.getCapture(tempFilePath) is False:
@@ -658,6 +685,10 @@ class CCaptureMovieDlg(tk.Frame):
             )
             if tempFilePath == "":
                 return
+
+            # 出力先フォルダを確認し、無ければ作成する
+            parentFolder = tempFilePath[:tempFilePath.rfind('/')]
+            keiUtil.checkExistFolder(parentFolder)
 
             # キャプチャを取得
             if self.movieCapture.getCapture(tempFilePath) is False:
@@ -858,7 +889,7 @@ class CCaptureMovieDlg(tk.Frame):
 ####################################################################################################################
 if __name__ == "__main__":
 
-    keiUtil.checkExitFolder(keiUtil.managementArea)  # 管理領域の作成
+    keiUtil.checkExistFolder(keiUtil.managementArea)  # 管理領域の作成
     keiUtil.toolName = "CaptureMovieDlg"
     keiUtil.execDay = keiUtil.getDay()  # アプリケーションの起動日の取得
     keiUtil.logAdd("CaptureMovie 起動", 1)
