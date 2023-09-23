@@ -265,19 +265,25 @@ class CView():
         return tk.Button(set_frame, text=btn_name, width=10, command=act_command)
 
     ####################################################################################################################
-    # ボタンの状態制御
+    # ボタンの状態制御 ※この関数でなく状態変化の ON/OFF で呼ぶこと
     ####################################################################################################################
     def enableWidget(self):
         if self.myVideo.setMovie is False:
+            # 動画読込前
             self.duringReadMovie(self, False)
             return
 
-        if self.parent.s_st.playingMovie is True:
-            # 再生中のボタントーンダウン
+        if self.parent.s_st.bPlayingMovie is True:
+            # 動画の再生中
             self.duringPlayMovie(True)
+
+        elif self.parent.s_st.bOutputingPicture is True:
+            # 画像の出力中
+            self.duringOutputPicture(True)
+
         else:
-            # 再生終了のトーンダウン解除
-            self.duringPlayMovie(False)
+            # それ以外
+            self.duringOutputPicture(False)
 
     ####################################################################################################################
     # 動画を読み込んだ時のボタンの状態変化
@@ -330,6 +336,37 @@ class CView():
             self.BTN_CAP.config(state=tk.NORMAL)      # 念のため解放処理
         self.CHK_CAP.config(state=bChangeState)
         self.BTN_OUTPUT.config(state=bChangeState)
+        self.CMB_FREQ.config(state=bChangeState)
+        self.SCR_SCALE.config(state=bChangeState)     # 再生中のスライダー操作で落ちるバグがあるため封印
+        self.RDO_FRQFRAME.config(state=bChangeState)
+        self.RDO_FRQSECOND.config(state=bChangeState)
+        self.CHK_CAP.config(state=bChangeState)
+        self.CHK_PLAY_SYNC.config(state=bChangeState)
+        self.CHK_PROG.config(state=bChangeState)
+        self.CHK_NOTLOG.config(state=bChangeState)
+
+    ####################################################################################################################
+    # 画像出力中のボタンの状態変化
+    ####################################################################################################################
+    def duringOutputPicture(self, state):
+        if state is True:
+            bChangeState = tk.DISABLED
+        else:
+            bChangeState = tk.NORMAL
+
+        self.BTN_PLAY.config(state=bChangeState)
+        self.BTN_STOP.config(state=bChangeState)
+        self.BTN_RSTPLAY.config(state=bChangeState)
+        self.BTN_CLOSE.config(state=bChangeState)
+        self.BTN_INPUTPATH.config(state=bChangeState)
+        self.BTN_OUTPUTPATH.config(state=bChangeState)
+        self.BTN_OUTPUTFOLDER.config(state=bChangeState)
+        self.BTN_POSSTART.config(state=bChangeState)
+        self.BTN_POSEND.config(state=bChangeState)
+        self.BTN_CAP.config(state=bChangeState)
+        self.BTN_OUTPUT.config(state=bChangeState)
+        if state is False:
+            self.btnOutput_var.set("出力")
         self.CMB_FREQ.config(state=bChangeState)
         self.SCR_SCALE.config(state=bChangeState)     # 再生中のスライダー操作で落ちるバグがあるため封印
         self.RDO_FRQFRAME.config(state=bChangeState)
@@ -409,13 +446,14 @@ class CCaptureMovieDlg(tk.Frame):
         # コンストラクタ
         #######################################################################
         def __init__(self):
-            self.playingMovie = False         # 再生中フラグ True の間フレームを更新する
+            self.bPlayingMovie = False         # 再生中フラグ True の間フレームを更新する
             self.inputMovieFolder = inifile["MOVIE EDIT"]["inputMoviePath"]        # 読み込みファイルのデフォルトフォルダー
             self.outputFolderPath = inifile["MOVIE EDIT"]["outputPicturePath"]     # 出力先フォルダのパス
             self.playDrawFrameFreq: int = 0   # 再生時の描画頻度設定 (キャンバスの更新を何Fごとに行うか)
             self.outputFrameFreq: int = 0     # 出力時の出力頻度の設定 (何フレーム毎に出力するか)
             self.tempcapNum = 0              # 簡易キャプチャ用連番
             self.bSliderMoving = False       # スライダー移動中フラグ
+            self.bOutputingPicture = False   # 出力中フラグ
             self.bStopMovieCapture = False   # 動画出力中止フラグ
             self.bSynchronizationPlayingTime = False    # 動画再生の時間を同期する
             self.bNotShowProgressBar = False            # 出力時、プログレスバーを表示しない
@@ -479,7 +517,7 @@ class CCaptureMovieDlg(tk.Frame):
         while self.myVideo.setMovie:
 
             # 再生中はループの処理を繰り返す
-            if self.s_st.playingMovie:            # 再生中
+            if self.s_st.bPlayingMovie:            # 再生中
 
                 self.playMovie.playMovie_func()
 
@@ -556,22 +594,22 @@ class CCaptureMovieDlg(tk.Frame):
             ret, self.myVideo.video_frame = self.myVideo.getFramePicture()  # フレームずれ対策
 
         # セット済みのフレームから動画を再生する
-        self.s_st.playingMovie = True
+        self.s_st.bPlayingMovie = True
         keiUtil.logAdd(f"動画の再生開始 -> {self.myVideo.path}", 1)
 
         # 再生中のボタンの無効化
-        self.view.enableWidget()
+        self.view.duringPlayMovie(True)
 
     ####################################################################################################################
     # 停止ボタンを押したときの動作
     ####################################################################################################################
     def OnBtnStop(self):
         # 現在のフレームで再生を停止する
-        self.s_st.playingMovie = False
+        self.s_st.bPlayingMovie = False
         keiUtil.logAdd(f"動画の再生停止 -> {self.myVideo.path}", 1)
 
         # ボタンの有効化
-        self.view.enableWidget()                     # コントロールの有効化
+        self.view.duringPlayMovie(False)
 
     ####################################################################################################################
     # リセットボタンを押したときの動作
@@ -622,7 +660,7 @@ class CCaptureMovieDlg(tk.Frame):
             self.playMovie.moveCountUp()
 
         else:
-            self.s_st.playingMovie = False                          # 再生を終了する
+            self.s_st.bPlayingMovie = False                          # 再生を終了する
             self.myVideo.capture.set(cv2.CAP_PROP_POS_FRAMES, 0)    # 動画の最初に戻す
 
             ret, self.video_frame = self.myVideo.getFramePicture()  # フレーム画像の読み込み
@@ -742,7 +780,10 @@ class CCaptureMovieDlg(tk.Frame):
             main_window.wait_window(self.progress_window)   # キャプチャ出力終了待ち
         else:
             self.thread_capture.start()                     # 表示せずに出力を開始
-#            self.thread_capture.join()                     # 出力完了時のメッセージボックスで固まるため一旦コメントアウト、対策検討する
+#            self.thread_capture.join()                     # メッセージボックス表示の際にフリーズするため join() は使用しない(処理内でトーンダウンする)
+
+        # 出力完了後のボタントーンアップ
+        self.view.duringOutputPicture(False)
 
     ####################################################################################################################
     # プログレスバーの作成
@@ -857,7 +898,7 @@ class CCaptureMovieDlg(tk.Frame):
     #   ※ダイアログの×、閉じるボタンで呼ぶ
     ####################################################################################################################
     def delete_window(self):
-        if self.s_st.playingMovie is True:
+        if self.s_st.bPlayingMovie is True:
             # 再生中はメッセージを出して return
             tk.messagebox.showwarning(
                 title="終了エラー",

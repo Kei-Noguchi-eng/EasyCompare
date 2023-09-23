@@ -200,8 +200,8 @@ class CPlayMovie:
                     print("遅延")     # デバッグ用
 
         else:
-            self.parent.s_st.playingMovie = False   # 再生を終了する
-            self.view.enableWidget()                # コントロールの有効化
+            self.parent.s_st.bPlayingMovie = False   # 再生を終了する
+            self.view.duringPlayMovie(False)                # コントロールの有効化
 
     ####################################################################################################################
     # 現在のフレームの内容で描画を更新する
@@ -348,6 +348,10 @@ class CMovieCapture:
     ####################################################################################################################
     def movieCapture(self, outFolderPath, StartPos, EndPos, captureFreq):
 
+        # 出力中のボタントーンダウン
+        self.parent.s_st.bOutputingPicture = True
+        self.parent.view.duringOutputPicture(True)
+
         # 出力先フォルダがなければ作成
         pictDir = f"{outFolderPath}/{self.myVideo.fileName}/{keiUtil.getTime()}"  # 「引数の出力先フォルダ\動画のファイル名」
         os.makedirs(pictDir, exist_ok=True)
@@ -419,3 +423,11 @@ class CMovieCapture:
 
             # カウントアップ
             count += 1
+
+        # while END
+
+        # 出力完了後のボタントーンアップ
+        self.parent.s_st.bOutputingPicture = False
+        self.parent.view.duringOutputPicture(False)
+
+
