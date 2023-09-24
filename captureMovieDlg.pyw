@@ -8,7 +8,6 @@ import cv2
 import threading        # スレッド処理
 import configparser     # iniファイル読込
 import keiUtil          # 自作ユーティリティのインポート
-# import time
 import subprocess       # サブプロセス起動のモジュール
 
 # 自作モジュールのインポート
@@ -19,7 +18,6 @@ from captureMovie import CMovieCapture
 # GUI関係
 import tkinter as tk
 from tkinter import ttk, filedialog
-# from tkinter.filedialog import askopenfile
 
 # iniファイル読込
 inifile = configparser.SafeConfigParser()
@@ -426,7 +424,7 @@ class CView():
             oldFrame = frame
 
         self.freqList_list = listItems                          # コンボボックスの要素用変数を上書き
-        self.CMB_FREQ.configure(values=self.freqList_list)    # コンボボックスの設定を更新
+        self.CMB_FREQ.configure(values=self.freqList_list)      # コンボボックスの設定を更新
         self.CMB_FREQ.set(defFpsText)                           # 1秒毎(fps)に値を設定
         self.CMB_FREQ.config(state=tk.NORMAL)                   # コンボボックスの有効化
         self.RDO_FRQFRAME.config(state=tk.NORMAL)               # ラジオボタンの有効化
@@ -446,11 +444,11 @@ class CCaptureMovieDlg(tk.Frame):
         # コンストラクタ
         #######################################################################
         def __init__(self):
-            self.bPlayingMovie = False         # 再生中フラグ True の間フレームを更新する
+            self.bPlayingMovie = False       # 再生中フラグ True の間フレームを更新する
             self.inputMovieFolder = inifile["MOVIE EDIT"]["inputMoviePath"]        # 読み込みファイルのデフォルトフォルダー
             self.outputFolderPath = inifile["MOVIE EDIT"]["outputPicturePath"]     # 出力先フォルダのパス
-            self.playDrawFrameFreq: int = 0   # 再生時の描画頻度設定 (キャンバスの更新を何Fごとに行うか)
-            self.outputFrameFreq: int = 0     # 出力時の出力頻度の設定 (何フレーム毎に出力するか)
+            self.playDrawFrameFreq: int = 0  # 再生時の描画頻度設定 (キャンバスの更新を何Fごとに行うか)
+            self.outputFrameFreq: int = 0    # 出力時の出力頻度の設定 (何フレーム毎に出力するか)
             self.tempcapNum = 0              # 簡易キャプチャ用連番
             self.bSliderMoving = False       # スライダー移動中フラグ
             self.bOutputingPicture = False   # 出力中フラグ

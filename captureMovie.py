@@ -7,18 +7,14 @@ import os
 import cv2
 import keiUtil
 import configparser
-# import keiUtil
-# import cv2
 import time
 
 # 画像処理 関係
 import tkinter as tk
-# from tkinter import ttk
 from PIL import Image, ImageTk
 
 # GUI関係
 from tkinter import messagebox
-# from tkinter.filedialog import askopenfile
 
 # iniファイル読込
 inifile = configparser.SafeConfigParser()
@@ -46,7 +42,7 @@ class CManagementMovie:
         self.setMovie = False           # 動画を読み込み済みか (スレッド生存のフラグ)
 
         # 入力動画の情報
-        self.capture: cv2.VideoCapture   # 動画のイメージ
+        self.capture: cv2.VideoCapture  # 動画のイメージ
         self.video_frame = None         # 動画から読みだしたフレーム画像
         self.path = ""                  # 動画のパス
         self.fileName = ""              # 動画のファイル名
@@ -200,8 +196,8 @@ class CPlayMovie:
                     print("遅延")     # デバッグ用
 
         else:
-            self.parent.s_st.bPlayingMovie = False   # 再生を終了する
-            self.view.duringPlayMovie(False)                # コントロールの有効化
+            self.parent.s_st.bPlayingMovie = False  # 再生を終了する
+            self.view.duringPlayMovie(False)        # コントロールの有効化
 
     ####################################################################################################################
     # 現在のフレームの内容で描画を更新する
@@ -239,7 +235,7 @@ class CPlayMovie:
         return Image.fromarray(rgb)
 
     ####################################################################################################################
-    # 動画した画像をキャンバスサイズにリサイズする
+    # 変換した画像をキャンバスサイズにリサイズする
     # ※ updateCanvasImage用
     ####################################################################################################################
     def resize_image(self, img, canvas):
